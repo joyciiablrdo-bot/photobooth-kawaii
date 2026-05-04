@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Polaroid Booth — Photobooth Kawaii</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Fredoka:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      :root {
+        --pink:#ff9ec8; --pink-deep:#ff6ba8; --lavender:#e8d4f0;
+        --brown:#4a3728; --white:#fffefd; --gray:#6b5a52;
+      }
+      body { background:linear-gradient(165deg,#f5e6ff 0%,#ffd6e8 45%,#e8d4ff 100%); min-height:100vh; }
+      main { max-width:980px; margin:0 auto; padding:1.5rem 1rem 5rem; position:relative; z-index:1; }
+
+      .back-link { display:inline-flex; align-items:center; gap:.4rem; color:var(--pink-deep); font-size:.9rem; margin-bottom:1rem; }
+      .back-link:hover { color:var(--brown); }
+
+      /* ===== STEPS ===== */
+      .step { display:none; animation:stepIn .4s ease both; }
+      .step.active { display:block; }
+      @keyframes stepIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+      /* ===== CAMERA STEP ===== */
+      .cam-wrap {
+        max-width:520px; margin:0 auto; text-align:center;
+      }
+      .cam-title {
+        font-family:'Fredoka',cursive; font-size:clamp(1.5rem,4vw,2rem);
+        color:var(--pink-deep); margin-bottom:.75rem;
+        text-shadow:2px 2px 0 var(--white);
+      }
+      .video-shell {
+        position:relative; border-radius:20px; overflow:hidden;
+        box-shadow:0 12px 40px rgba(255,100,160,.3);
+        background:#1a0a14; aspect-ratio:4/3;
+      }
+      #video {
+        width:100%; height:100%; object-fit:cover; display:block;
+        transform:scaleX(-1);
+      }
+      .countdown-overlay {
+        position:absolute; inset:0; display:flex; align-items:center;
+        justify-content:center; pointer-events:none;
+      }
+      .countdown-num {
+        font-family:'Fredoka',cursive; font-size:8rem; font-weight:700;
+        color:#fff; text-shadow:0 0 40px rgba(255,120,180,.8),0 4px 0 rgba(0,0,0,.2);
+        opacity:0; transition:none;
+        animation:none;
+      }
+      .countdown-num.show { animation:countPop .85s ease forwards; }
+      @keyframes countPop {
+        0%{opacity:0;transform:scale(2);}
+        20%{opacity:1;transform:scale(1);}
+        80%{opacity:1;transform:scale(1);}
+        100%{opacity:0;transform:scale(0.8);}
+      }
+      .flash-cap {
+        position:absolute; inset:0; background:#fff;
+        opacity:0; pointer-events:none; border-radius:20px;
+        transition:opacity .08s ease;
+      }
+      .flash-cap.pop { opacity:1; }
+
+      .cam-btn {
+        margin-top:1.25rem; padding:.85rem 2.5rem;
+        background:linear-gradient(145deg,#ffb8d9,var(--pink-deep));
+        color:#fff; border:none; border-radius:99px; cursor:pointer;
+        font-family:'Fredoka',cursive; font-size:1.2rem;
+        box-shadow:0 8px 28px rgba(255,100,160,.4);
+        transition:transform .2s, box-shadow .2s;
+      }
+      .cam-btn:hover:not(:disabled) { transform:scale(1.05); box-shadow:0 12px 36px rgba(255,100,160,.5); }
+      .cam-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+      canvas { display:none; }
+
+      /* ===== STUDIO STEP ===== */
+      .studio-layout {
+        display:grid; grid-template-columns:1fr 320px; gap:1.5rem;
+        align-items:start;
+      }
+      @media(max-width:740px){ .studio-layout{grid-template-columns:1fr;} }
+
+      .preview-panel { text-align:center; }
+      .preview-panel h2 {
+        font-family:'Fredoka',cursive; font-size:1.5rem; color:var(--pink-deep);
+        margin-bottom:1rem; text-shadow:2px 2px 0 var(--white);
+      }
+
+      .polaroid-preview {
+        display:inline-block;
+        padding:14px 14px 54px;
+        background:#fff;
+        box-shadow:6px 8px 32px rgba(180,120,200,.3);
+        border-radius:6px;
+        position:relative;
+        max-width:280px;
+        transition:box-shadow .3s;
+      }
+      .polaroid-preview .pol-photo {
+        width:252px; height:220px; object-fit:cover;
+        border-radius:3px; display:block;
+      }
+      .polaroid-preview .pol-caption {
+        position:absolute; bottom:14px; left:0; right:0;
+        text-align:center; font-family:'Comic Neue',cursive;
+        font-size:.85rem; color:#c0b0d0;
+      }
+      .polaroid-preview .pol-sticker-tl { position:absolute; top:-10px; left:-10px; font-size:1.4rem; }
+      .polaroid-preview .pol-sticker-tr { position:absolute; top:-10px; right:-10px; font-size:1.4rem; }
+      .polaroid-preview .pol-sticker-bl { position:absolute; bottom:8px; left:8px; font-size:1rem; }
+      .polaroid-preview .pol-sticker-br { position:absolute; bottom:8px; right:8px; font-size:1rem; }
+      .polaroid-preview .pol-top-band {
+        position:absolute; top:0; left:0; right:0; height:6px;
+        border-radius:4px 4px 0 0;
+      }
+      .polaroid-preview .pol-left-stripe {
+        position:absolute; top:14px; left:0; bottom:0; width:6px;
+      }
+      .polaroid-preview .pol-right-stripe {
+        position:absolute; top:14px; right:0; bottom:0; width:6px;
+      }
+      .polaroid-preview .pol-bottom-band {
+        position:absolute; bottom:0; left:0; right:0; height:6px;
+        border-radius:0 0 4px 4px;
+      }
+
+      .action-btns { display:flex; gap:.75rem; justify-content:center; margin-top:1.25rem; flex-wrap:wrap; }
+      .btn-retake {
+        padding:.7rem 1.5rem; background:var(--white); color:var(--pink-deep);
+        border:2px solid var(--pink); border-radius:99px; cursor:pointer;
+        font-family:'Fredoka',cursive; font-size:1rem; transition:transform .2s;
+      }
+      .btn-retake:hover { transform:scale(1.04); }
+      .btn-download {
+        padding:.7rem 1.5rem;
+        background:linear-gradient(145deg,#ffb8d9,var(--pink-deep));
+        color:#fff; border:none; border-radius:99px; cursor:pointer;
+        font-family:'Fredoka',cursive; font-size:1rem;
+        box-shadow:0 6px 20px rgba(255,100,160,.35); transition:transform .2s;
+      }
+      .btn-download:hover { transform:scale(1.04); }
+
+      /* ===== FRAMES PANEL ===== */
+      .frames-panel {
+        background:var(--white); border-radius:20px;
+        padding:1rem; box-shadow:0 8px 28px rgba(180,120,200,.15);
+        max-height:560px; overflow-y:auto;
+      }
+      .frames-panel h3 {
+        font-family:'Fredoka',cursive; font-size:1.1rem; color:var(--pink-deep);
+        margin:0 0 .75rem; text-align:center;
+      }
+      .frames-category { margin-bottom:1rem; }
+      .cat-label {
+        font-size:.72rem; font-weight:700; letter-spacing:.08em;
+        color:var(--gray); text-transform:uppercase; margin-bottom:.4rem;
+        padding:.25rem .5rem; background:var(--lavender); border-radius:99px;
+        display:inline-block;
+      }
+      .frames-row { display:flex; flex-wrap:wrap; gap:.5rem; }
+      .frame-thumb-btn {
+        width:64px; height:80px; border-radius:10px; border:2px solid transparent;
+        cursor:pointer; background:none; padding:3px; transition:transform .15s, border-color .15s;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:2px; font-size:.6rem; color:var(--brown);
+        box-shadow:0 2px 8px rgba(180,120,200,.15);
+      }
+      .frame-thumb-btn:hover { transform:scale(1.08); }
+      .frame-thumb-btn.active { border-color:var(--pink-deep); box-shadow:0 0 0 3px rgba(255,107,168,.3); }
+      .frame-thumb-btn .thumb-preview {
+        width:42px; height:54px; border-radius:4px;
+        display:flex; align-items:center; justify-content:center; font-size:1.2rem;
+        position:relative; overflow:hidden; flex-shrink:0;
+      }
+      .frame-thumb-btn .thumb-label { font-size:.5rem; text-align:center; line-height:1.2; color:var(--gray); }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="index.html" class="logo font-display">photobooth kawaii <span class="heart">♡</span></a>
+      <nav aria-label="Main"><ul class="nav-main">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="photobooth.html" aria-current="page">Photobooth</a></li>
+        <li><a href="frames.html">Frames</a></li>
+      </ul></nav>
+      <span class="header-bow" aria-hidden="true">🎀</span>
+    </header>
+
+    <main>
+      <a href="choose-style.html" class="back-link">← back to style select</a>
+
+      <!-- STEP 1: Camera -->
+      <div class="step active" id="stepCamera">
+        <div class="cam-wrap">
+          <h1 class="cam-title">🎀 Polaroid Selfie</h1>
+          <p style="color:var(--gray);margin-bottom:1rem">Strike a pose — you've got 5 seconds after you're ready! ♡</p>
+
+          <div class="video-shell">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="countdown-overlay">
+              <div class="countdown-num" id="countNum"></div>
+            </div>
+            <div class="flash-cap" id="flashCap"></div>
+          </div>
+
+          <canvas id="canvas" width="640" height="480"></canvas>
+
+          <div style="margin-top:1rem">
+            <button class="cam-btn" id="btnReady" onclick="startCountdown()">✨ Ready / Start Pose</button>
+          </div>
+          <p id="camError" style="color:#e06090;margin-top:.75rem;display:none"></p>
+        </div>
+      </div>
+
+      <!-- STEP 2: Studio -->
+      <div class="step" id="stepStudio">
+        <div class="studio-layout">
+          <!-- Preview -->
+          <div class="preview-panel">
+            <h2>🌸 Polaroid Design Studio</h2>
+            <div class="polaroid-preview" id="polaroidPreview">
+              <div class="pol-top-band" id="polTopBand"></div>
+              <div class="pol-left-stripe" id="polLeftStripe"></div>
+              <div class="pol-right-stripe" id="polRightStripe"></div>
+              <img class="pol-photo" id="polPhoto" src="" alt="Your photo" />
+              <div class="pol-sticker-tl" id="polStickerTL"></div>
+              <div class="pol-sticker-tr" id="polStickerTR"></div>
+              <div class="pol-sticker-bl" id="polStickerBL"></div>
+              <div class="pol-sticker-br" id="polStickerBR"></div>
+              <div class="pol-caption" id="polCaption">✨ cute moments forever ✨</div>
+              <div class="pol-bottom-band" id="polBottomBand"></div>
+            </div>
+
+            <div class="action-btns">
+              <button class="btn-retake" onclick="retake()">🔄 Retake Photo</button>
+              <button class="btn-download" onclick="downloadPolaroid()">⬇️ Download</button>
+            </div>
+            <p style="margin-top:.75rem"><a href="index.html" style="color:var(--gray);font-size:.85rem">← Back to Home</a></p>
+          </div>
+
+          <!-- Frames -->
+          <div class="frames-panel">
+            <h3>🎨 Pick a Frame</h3>
+            <div id="framesContainer"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="name">photobooth kawaii ♡</div>
+          <div class="sub">cute moments, forever</div>
+        </div>
+        <p class="copyright">© 2026 Photobooth Kawaii. All rights reserved. ♡</p>
+      </div>
+    </footer>
+
+    <script>
+    // ===== 50 POLAROID FRAME TEMPLATES =====
+    const FRAMES = [
+      // Floral & Spring
+      { id:1, name:"Cherry Blossom", cat:"🌸 Floral", bg:"linear-gradient(135deg,#ffe8f4,#f0d4ff)", border:"#ff9ec8", accent:"#ffb8d9", s:["🌸","🌺","🌷","✿"], caption:"bloom forever ✿", font:"#d4789c" },
+      { id:2, name:"Rose Garden", cat:"🌸 Floral", bg:"linear-gradient(135deg,#ffe0e8,#ffd4e8)", border:"#e87090", accent:"#ffb0c8", s:["🌹","🥀","🌹","🌷"], caption:"avec amour ♡", font:"#c04070" },
+      { id:3, name:"Lavender Dream", cat:"🌸 Floral", bg:"linear-gradient(135deg,#e8d4ff,#d4c0f0)", border:"#c090e0", accent:"#d4b0f0", s:["💜","🌿","💜","🌿"], caption:"dreamy lavender ✿", font:"#8050b0" },
+      { id:4, name:"Sunflower Pop", cat:"🌸 Floral", bg:"linear-gradient(135deg,#fff4c0,#ffe880)", border:"#e0b800", accent:"#ffe040", s:["🌻","☀️","🌻","🌼"], caption:"sunny days ☀", font:"#a07000" },
+      { id:5, name:"Daisy Fields", cat:"🌸 Floral", bg:"linear-gradient(135deg,#f0ffe0,#e0ffd0)", border:"#90d060", accent:"#b0e880", s:["🌼","🌿","🌸","🍃"], caption:"field of daisies", font:"#507030" },
+
+      // Kawaii & Cute
+      { id:6, name:"Kawaii Pink", cat:"🍬 Kawaii", bg:"linear-gradient(135deg,#ffe0f0,#ffc0e0)", border:"#ff80c0", accent:"#ffa0d0", s:["🎀","✨","🎀","💖"], caption:"kawaii desu ♡", font:"#e0508a" },
+      { id:7, name:"Bunny Hop", cat:"🍬 Kawaii", bg:"linear-gradient(135deg,#f0f0ff,#e8e0ff)", border:"#c0b0f0", accent:"#d8d0ff", s:["🐰","🌸","🐰","🌸"], caption:"hop hop ✿", font:"#8070c0" },
+      { id:8, name:"Star Girl", cat:"🍬 Kawaii", bg:"linear-gradient(135deg,#fff8d0,#fff0a0)", border:"#e0c000", accent:"#ffe840", s:["⭐","🌟","⭐","✨"], caption:"you're a star ★", font:"#908000" },
+      { id:9, name:"Candy World", cat:"🍬 Kawaii", bg:"linear-gradient(135deg,#ffd0e8,#d0f0ff)", border:"#ff80a0", accent:"#ffb0c8", s:["🍬","🍭","🍬","🍭"], caption:"sweet as candy", font:"#d04060" },
+      { id:10, name:"Strawberry", cat:"🍬 Kawaii", bg:"linear-gradient(135deg,#ffd4d4,#ffe0d0)", border:"#e05050", accent:"#ff8080", s:["🍓","💖","🍓","✿"], caption:"berry cute ♡", font:"#c03040" },
+      { id:11, name:"Kitty Paws", cat:"🍬 Kawaii", bg:"linear-gradient(135deg,#fff0f0,#ffe8e8)", border:"#e09090", accent:"#ffb8b8", s:["🐱","🐾","🐱","💗"], caption:"nyaa~ ♡", font:"#c06060" },
+      { id:12, name:"Sailor Moon", cat:"🍬 Kawaii", bg:"linear-gradient(135deg,#fff0d0,#d0e8ff)", border:"#8090e0", accent:"#b0c0f8", s:["🌙","⭐","🌙","💫"], caption:"moon prism power", font:"#4050a0" },
+
+      // Pastel
+      { id:13, name:"Cotton Candy", cat:"🎨 Pastel", bg:"linear-gradient(135deg,#ffd0f0,#d0f0ff)", border:"#c090d0", accent:"#e0b0e8", s:["🌈","💗","🌈","✨"], caption:"soft & sweet ♡", font:"#9060a0" },
+      { id:14, name:"Mint Cream", cat:"🎨 Pastel", bg:"linear-gradient(135deg,#d0fff0,#e8fff8)", border:"#60c0a0", accent:"#90d8b8", s:["🌿","💚","🌿","🍃"], caption:"fresh & minty", font:"#307050" },
+      { id:15, name:"Baby Blue", cat:"🎨 Pastel", bg:"linear-gradient(135deg,#d0e8ff,#c0d8f8)", border:"#7090c0", accent:"#90b0d8", s:["🌊","💙","☁️","🫧"], caption:"serene blue ♡", font:"#4060a0" },
+      { id:16, name:"Peach Sorbet", cat:"🎨 Pastel", bg:"linear-gradient(135deg,#ffe8d0,#ffd8b8)", border:"#e09060", accent:"#f0b080", s:["🍑","🌸","🍑","✿"], caption:"peachy keen ♡", font:"#c06030" },
+      { id:17, name:"Lilac Mist", cat:"🎨 Pastel", bg:"linear-gradient(135deg,#f0e0ff,#e8d0f8)", border:"#c0a0e0", accent:"#d8c0f0", s:["💜","🌸","🌷","✨"], caption:"lilac dreams", font:"#8060b0" },
+      { id:18, name:"Butter Yellow", cat:"🎨 Pastel", bg:"linear-gradient(135deg,#fff8d0,#fff0b0)", border:"#d0b000", accent:"#ffe040", s:["🌼","🌟","🌼","☀️"], caption:"sunny & bright", font:"#906000" },
+
+      // Retro Booth
+      { id:19, name:"Vintage Strip", cat:"📷 Retro", bg:"linear-gradient(135deg,#f0e8d0,#e8d8b8)", border:"#a08060", accent:"#c0a070", s:["📷","🎞️","📷","🎞️"], caption:"captured forever", font:"#604020" },
+      { id:20, name:"Film Noir", cat:"📷 Retro", bg:"linear-gradient(135deg,#e8e8e8,#d0d0d0)", border:"#404040", accent:"#606060", s:["🎬","⬛","🎬","📽️"], caption:"lights, camera, action", font:"#202020" },
+      { id:21, name:"Kodak Moment", cat:"📷 Retro", bg:"linear-gradient(135deg,#fff0c0,#ffe890)", border:"#d09010", accent:"#e8b820", s:["📸","🌟","📸","✨"], caption:"a kodak moment", font:"#805000" },
+      { id:22, name:"Disco Fever", cat:"📷 Retro", bg:"linear-gradient(135deg,#d0d0ff,#f0d0f8)", border:"#9070d0", accent:"#c090e8", s:["🪩","✨","🪩","💫"], caption:"disco queen ♡", font:"#5030a0" },
+      { id:23, name:"Pop Art", cat:"📷 Retro", bg:"linear-gradient(135deg,#ffff00,#ff8000)", border:"#ff0000", accent:"#ff6000", s:["🟡","🔴","🟡","🔵"], caption:"pop art vibes!", font:"#800000" },
+      { id:24, name:"Retro Pink", cat:"📷 Retro", bg:"linear-gradient(135deg,#ffd0e8,#ff90c0)", border:"#e04090", accent:"#ff60a0", s:["💋","🌸","💋","✨"], caption:"groovy baby ♡", font:"#900040" },
+
+      // Seasonal
+      { id:25, name:"Winter Frost", cat:"❄️ Seasonal", bg:"linear-gradient(135deg,#e8f4ff,#d0eaff)", border:"#7090c0", accent:"#a0c0e0", s:["❄️","⛄","❄️","🌨️"], caption:"frosty & cozy ✿", font:"#4060a0" },
+      { id:26, name:"Summer Breeze", cat:"❄️ Seasonal", bg:"linear-gradient(135deg,#d0f0ff,#ffe8b0)", border:"#50b0d0", accent:"#70c8e8", s:["🌊","🌞","🌊","🌴"], caption:"summer lovin' ♡", font:"#205070" },
+      { id:27, name:"Autumn Leaves", cat:"❄️ Seasonal", bg:"linear-gradient(135deg,#ffe8b0,#ffcc70)", border:"#c07020", accent:"#e09040", s:["🍂","🍁","🍂","🍄"], caption:"golden autumn", font:"#703010" },
+      { id:28, name:"Spring Fresh", cat:"❄️ Seasonal", bg:"linear-gradient(135deg,#e0ffd0,#d0f0e0)", border:"#60b060", accent:"#80c880", s:["🌱","🌸","🌱","🦋"], caption:"spring is here ♡", font:"#305030" },
+      { id:29, name:"Xmas Magic", cat:"❄️ Seasonal", bg:"linear-gradient(135deg,#ffe8e8,#d0f0d0)", border:"#c02020", accent:"#e04040", s:["🎄","🎁","❄️","⭐"], caption:"holiday magic ✿", font:"#900020" },
+      { id:30, name:"Halloween Cute", cat:"❄️ Seasonal", bg:"linear-gradient(135deg,#ffe0b0,#f0c0e8)", border:"#906030", accent:"#c08050", s:["🎃","🦇","🎃","🕷️"], caption:"boo! so cute ♡", font:"#503010" },
+
+      // Elegant/Minimal
+      { id:31, name:"Pure White", cat:"🤍 Minimal", bg:"linear-gradient(135deg,#ffffff,#f8f8f8)", border:"#e0e0e0", accent:"#f0f0f0", s:["✦","○","✦","○"], caption:"simply you ♡", font:"#888888" },
+      { id:32, name:"Gold Foil", cat:"🤍 Minimal", bg:"linear-gradient(135deg,#fff8d8,#f8e898)", border:"#c8a800", accent:"#e0c000", s:["✨","◇","✨","◇"], caption:"golden moment", font:"#706000" },
+      { id:33, name:"Silver Lining", cat:"🤍 Minimal", bg:"linear-gradient(135deg,#f0f0f0,#e4e4e4)", border:"#909090", accent:"#b0b0b0", s:["◈","◇","◈","○"], caption:"silver lining ✦", font:"#505050" },
+      { id:34, name:"Marble Blush", cat:"🤍 Minimal", bg:"linear-gradient(135deg,#fff0ec,#f8e8e0)", border:"#d0a090", accent:"#e8b8a8", s:["◇","✦","◇","✦"], caption:"graceful & chic", font:"#806050" },
+      { id:35, name:"Ink & Paper", cat:"🤍 Minimal", bg:"linear-gradient(135deg,#f8f4e8,#f0ecdc)", border:"#806040", accent:"#a08060", s:["🖊️","📝","🖊️","✦"], caption:"written in love", font:"#503020" },
+
+      // Sticker & Fun
+      { id:36, name:"Rainbow", cat:"🌈 Fun", bg:"linear-gradient(135deg,#ffd0d0,#ffebd0,#d0ffd8,#d0e8ff,#f0d0ff)", border:"#c080c0", accent:"#e0a0e0", s:["🌈","☁️","🌈","⭐"], caption:"somewhere over ♡", font:"#806090" },
+      { id:37, name:"Space Kei", cat:"🌈 Fun", bg:"linear-gradient(135deg,#101030,#201060)", border:"#4040a0", accent:"#6060c0", s:["🚀","⭐","🪐","✨"], caption:"to infinity ✦", font:"#9090ff" },
+      { id:38, name:"Mermaid", cat:"🌈 Fun", bg:"linear-gradient(135deg,#a0e8f0,#90d0f8)", border:"#3090b0", accent:"#50b0d0", s:["🧜","🐚","🌊","✨"], caption:"ocean dreams ♡", font:"#105070" },
+      { id:39, name:"Magic Girl", cat:"🌈 Fun", bg:"linear-gradient(135deg,#ffd8f8,#d8f0ff)", border:"#c060c0", accent:"#e090d0", s:["🌙","⭐","🔮","✨"], caption:"magical girl ★", font:"#9030a0" },
+      { id:40, name:"Y2K Vibes", cat:"🌈 Fun", bg:"linear-gradient(135deg,#d0f8f0,#f0d0f8)", border:"#80a0c0", accent:"#a0c0e0", s:["💿","📱","💿","⚡"], caption:"y2k forever", font:"#304080" },
+
+      // Elegant Colorful
+      { id:41, name:"Rose Gold", cat:"💅 Glam", bg:"linear-gradient(135deg,#ffe8d8,#f8d0c0)", border:"#d09080", accent:"#e8b0a0", s:["🌹","💗","💅","✦"], caption:"rose gold queen", font:"#905040" },
+      { id:42, name:"Amethyst", cat:"💅 Glam", bg:"linear-gradient(135deg,#e0d0f8,#d8c0f0)", border:"#9070c0", accent:"#b090d8", s:["💎","🔮","💎","✨"], caption:"crystal clear ✦", font:"#6040a0" },
+      { id:43, name:"Champagne", cat:"💅 Glam", bg:"linear-gradient(135deg,#fff0d0,#f8e0b0)", border:"#c09848", accent:"#d8b060", s:["🥂","✨","🥂","💫"], caption:"celebrate you ♡", font:"#806030" },
+      { id:44, name:"Holographic", cat:"💅 Glam", bg:"linear-gradient(135deg,#f0d8ff,#d8f0ff,#d8ffd8,#fff0d8)", border:"#a080b0", accent:"#c0a0d0", s:["🦄","🌈","✨","💫"], caption:"holographic dream", font:"#7050a0" },
+      { id:45, name:"Black Lace", cat:"💅 Glam", bg:"linear-gradient(135deg,#f8e8f0,#f0d8e8)", border:"#2a1020", accent:"#4a2040", s:["🖤","🌹","🖤","🌹"], caption:"dark romance ♡", font:"#1a0810" },
+
+      // Nature
+      { id:46, name:"Forest Fairy", cat:"🌿 Nature", bg:"linear-gradient(135deg,#d8f0d0,#c8e8c0)", border:"#408040", accent:"#60a060", s:["🌿","🦋","🌸","🍃"], caption:"forest fairy ✿", font:"#204020" },
+      { id:47, name:"Ocean Breeze", cat:"🌿 Nature", bg:"linear-gradient(135deg,#c0e8f8,#b0d8f0)", border:"#2080a0", accent:"#40a0c0", s:["🌊","🐚","🌊","🫧"], caption:"ocean child ♡", font:"#104060" },
+      { id:48, name:"Sunset Glow", cat:"🌿 Nature", bg:"linear-gradient(135deg,#ffd0a0,#ff9060)", border:"#c05020", accent:"#e07040", s:["🌅","🌸","🌅","✨"], caption:"golden hour ♡", font:"#602010" },
+      { id:49, name:"Sakura Park", cat:"🌿 Nature", bg:"linear-gradient(135deg,#ffe8f4,#ffd8ec)", border:"#e07090", accent:"#f090b0", s:["🌸","🌸","🌸","🌸"], caption:"sakura forever ♡", font:"#c04060" },
+      { id:50, name:"Moonlit Night", cat:"🌿 Nature", bg:"linear-gradient(135deg,#1a1a3a,#2a2060)", border:"#4040a0", accent:"#6060c0", s:["🌙","⭐","🌙","💫"], caption:"moonlit dreams ✦", font:"#8090f0" },
+    ];
+
+    let capturedDataURL = null;
+    let currentFrame = FRAMES[0];
+    let videoStream = null;
+
+    // ===== Camera Init =====
+    async function initCamera() {
+      const video = document.getElementById('video');
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode:'user', width:{ ideal:1280 }, height:{ ideal:960 } }, audio:false
+        });
+        video.srcObject = videoStream;
+      } catch(e) {
+        const err = document.getElementById('camError');
+        err.style.display = 'block';
+        err.textContent = '📷 Camera access denied. Please allow camera permission and reload.';
+        document.getElementById('btnReady').disabled = true;
+      }
+    }
+
+    // ===== Countdown =====
+    function startCountdown() {
+      const btn = document.getElementById('btnReady');
+      btn.disabled = true;
+      const el = document.getElementById('countNum');
+      let count = 5;
+
+      function tick() {
+        el.className = 'countdown-num';
+        void el.offsetWidth; // reflow to restart animation
+        el.textContent = count;
+        el.className = 'countdown-num show';
+        count--;
+        if (count >= 0) {
+          setTimeout(tick, 900);
+        } else {
+          setTimeout(() => { el.textContent = ''; capturePhoto(); }, 400);
+        }
+      }
+      tick();
+    }
+
+    function capturePhoto() {
+      // Flash effect
+      const flash = document.getElementById('flashCap');
+      flash.classList.add('pop');
+      // Shutter sound
+      try {
+        const ctx = new AudioContext();
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.03));
+        const src=ctx.createBufferSource(); src.buffer=buf; src.connect(ctx.destination); src.start();
+      } catch(e){}
+
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx2 = canvas.getContext('2d');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      ctx2.save();
+      ctx2.translate(canvas.width, 0);
+      ctx2.scale(-1, 1);
+      ctx2.drawImage(video, 0, 0);
+      ctx2.restore();
+      capturedDataURL = canvas.toDataURL('image/jpeg', 0.95);
+
+      setTimeout(() => {
+        flash.classList.remove('pop');
+        goToStudio();
+      }, 250);
+    }
+
+    function goToStudio() {
+      // Stop camera
+      if(videoStream) { videoStream.getTracks().forEach(t=>t.stop()); }
+      document.getElementById('stepCamera').classList.remove('active');
+      document.getElementById('stepStudio').classList.add('active');
+      document.getElementById('polPhoto').src = capturedDataURL;
+      buildFramePicker();
+      applyFrame(FRAMES[0]);
+    }
+
+    function retake() {
+      document.getElementById('stepStudio').classList.remove('active');
+      document.getElementById('stepCamera').classList.add('active');
+      document.getElementById('btnReady').disabled = false;
+      document.getElementById('countNum').textContent = '';
+      initCamera();
+    }
+
+    // ===== Frame Picker =====
+    function buildFramePicker() {
+      const container = document.getElementById('framesContainer');
+      container.innerHTML = '';
+      const cats = {};
+      FRAMES.forEach(f => {
+        if(!cats[f.cat]) cats[f.cat] = [];
+        cats[f.cat].push(f);
+      });
+      Object.entries(cats).forEach(([cat, frames]) => {
+        const sec = document.createElement('div');
+        sec.className = 'frames-category';
+        sec.innerHTML = `<div class="cat-label">${cat}</div><div class="frames-row" id="cat-${cat.replace(/\s+/g,'-')}"></div>`;
+        container.appendChild(sec);
+        const row = sec.querySelector('.frames-row');
+        frames.forEach(f => {
+          const btn = document.createElement('button');
+          btn.className = 'frame-thumb-btn' + (f.id===1?' active':'');
+          btn.title = f.name;
+          btn.innerHTML = `<div class="thumb-preview" style="background:${f.bg};border:2px solid ${f.border}">${f.s[0]}</div><span class="thumb-label">${f.name}</span>`;
+          btn.onclick = () => {
+            document.querySelectorAll('.frame-thumb-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFrame(f);
+          };
+          row.appendChild(btn);
+        });
+      });
+    }
+
+    function applyFrame(f) {
+      currentFrame = f;
+      const preview = document.getElementById('polaroidPreview');
+      preview.style.background = f.bg;
+      preview.style.boxShadow = `6px 8px 32px ${f.border}55`;
+      document.getElementById('polTopBand').style.background = f.accent;
+      document.getElementById('polBottomBand').style.background = f.accent;
+      document.getElementById('polLeftStripe').style.background = f.accent;
+      document.getElementById('polRightStripe').style.background = f.accent;
+      document.getElementById('polStickerTL').textContent = f.s[0];
+      document.getElementById('polStickerTR').textContent = f.s[1];
+      document.getElementById('polStickerBL').textContent = f.s[2];
+      document.getElementById('polStickerBR').textContent = f.s[3];
+      document.getElementById('polCaption').textContent = f.caption;
+      document.getElementById('polCaption').style.color = f.font;
+    }
+
+    // ===== Download =====
+    async function downloadPolaroid() {
+      const f = currentFrame;
+      const photoSrc = capturedDataURL;
+      const W = 600, PHOTO_W = 540, PHOTO_H = 470, BOTTOM = 110;
+      const H = 14 + PHOTO_H + BOTTOM;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // Background
+      const grad = ctx.createLinearGradient(0,0,W,H);
+      // Simple solid from bg string
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,W,H);
+
+      // Top accent band
+      ctx.fillStyle = f.accent;
+      ctx.fillRect(0,0,W,8);
+      // Bottom band
+      ctx.fillStyle = f.accent;
+      ctx.fillRect(0,H-8,W,8);
+      // Side stripes
+      ctx.fillStyle = f.accent;
+      ctx.fillRect(0,0,6,H);
+      ctx.fillRect(W-6,0,6,H);
+
+      // Draw photo
+      const img = new Image();
+      img.src = photoSrc;
+      await new Promise(r=>img.onload=r);
+      const px = (W-PHOTO_W)/2, py = 14;
+      ctx.drawImage(img, px, py, PHOTO_W, PHOTO_H);
+
+      // Caption text
+      ctx.fillStyle = f.font;
+      ctx.font = '600 22px Comic Neue, cursive';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.caption, W/2, py + PHOTO_H + 52);
+
+      // Stickers
+      const stickerFont = '36px serif';
+      ctx.font = stickerFont;
+      ctx.fillText(f.s[0], 24, 50);
+      ctx.fillText(f.s[1], W-24, 50);
+
+      // Download
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `kawaii-polaroid-${f.name.replace(/\s+/g,'-').toLowerCase()}.png`;
+      a.click();
+    }
+
+    // ===== Init =====
+    window.addEventListener('DOMContentLoaded', initCamera);
+    </script>
+  </body>
+</html>
