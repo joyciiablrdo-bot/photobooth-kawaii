@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photostrip Booth — Photobooth Kawaii</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Fredoka:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      :root {
+        --pink:#ff9ec8; --pink-deep:#ff6ba8; --lavender:#e8d4f0;
+        --brown:#4a3728; --white:#fffefd; --gray:#6b5a52;
+      }
+      body { background:linear-gradient(165deg,#f5e6ff 0%,#ffd6e8 45%,#e8d4ff 100%); min-height:100vh; }
+      main { max-width:1040px; margin:0 auto; padding:1.5rem 1rem 5rem; position:relative; z-index:1; }
+
+      .back-link { display:inline-flex; align-items:center; gap:.4rem; color:var(--pink-deep); font-size:.9rem; margin-bottom:1rem; }
+      .back-link:hover { color:var(--brown); }
+
+      .step { display:none; animation:stepIn .4s ease both; }
+      .step.active { display:block; }
+      @keyframes stepIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+      /* ===== CAMERA ===== */
+      .cam-wrap { max-width:560px; margin:0 auto; text-align:center; }
+      .cam-title { font-family:'Fredoka',cursive; font-size:clamp(1.4rem,4vw,1.9rem); color:var(--pink-deep); margin-bottom:.5rem; text-shadow:2px 2px 0 var(--white); }
+
+      .video-shell {
+        position:relative; border-radius:20px; overflow:hidden;
+        box-shadow:0 12px 40px rgba(255,100,160,.3);
+        background:#1a0a14; aspect-ratio:4/3;
+      }
+      #video { width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1); }
+      .countdown-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+      .countdown-num { font-family:'Fredoka',cursive; font-size:8rem; font-weight:700; color:#fff; text-shadow:0 0 40px rgba(255,120,180,.8),0 4px 0 rgba(0,0,0,.2); opacity:0; }
+      .countdown-num.show { animation:countPop .85s ease forwards; }
+      @keyframes countPop { 0%{opacity:0;transform:scale(2);} 20%{opacity:1;transform:scale(1);} 80%{opacity:1;transform:scale(1);} 100%{opacity:0;transform:scale(.8);} }
+      .flash-cap { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; border-radius:20px; transition:opacity .08s ease; }
+      .flash-cap.pop { opacity:1; }
+
+      /* Shot progress dots */
+      .shot-dots { display:flex; gap:.6rem; justify-content:center; margin-bottom:1rem; }
+      .dot {
+        width:14px; height:14px; border-radius:50%;
+        background:#e0c0d8; border:2px solid #d0a8c0; transition:background .3s;
+      }
+      .dot.done { background:var(--pink-deep); border-color:var(--pink-deep); }
+      .dot.current { background:var(--pink); border-color:var(--pink-deep); animation:dotPulse 1s ease-in-out infinite; }
+      @keyframes dotPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.3);} }
+
+      .shot-status { color:var(--gray); font-size:.9rem; margin:.5rem 0; }
+
+      .cam-btn {
+        margin-top:1.25rem; padding:.85rem 2.5rem;
+        background:linear-gradient(145deg,#ffb8d9,var(--pink-deep));
+        color:#fff; border:none; border-radius:99px; cursor:pointer;
+        font-family:'Fredoka',cursive; font-size:1.2rem;
+        box-shadow:0 8px 28px rgba(255,100,160,.4); transition:transform .2s, box-shadow .2s;
+      }
+      .cam-btn:hover:not(:disabled) { transform:scale(1.05); box-shadow:0 12px 36px rgba(255,100,160,.5); }
+      .cam-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+      canvas { display:none; }
+
+      /* ===== STUDIO ===== */
+      .studio-layout { display:grid; grid-template-columns:1fr 320px; gap:1.5rem; align-items:start; }
+      @media(max-width:760px){ .studio-layout{ grid-template-columns:1fr; } }
+
+      .preview-panel { text-align:center; }
+      .preview-panel h2 { font-family:'Fredoka',cursive; font-size:1.5rem; color:var(--pink-deep); margin-bottom:1rem; text-shadow:2px 2px 0 var(--white); }
+
+      .strip-container {
+        display:inline-block; position:relative;
+        padding:10px 10px 28px;
+        background:#fff; border-radius:8px;
+        box-shadow:6px 8px 32px rgba(180,120,200,.3);
+        transition:box-shadow .3s;
+      }
+      .strip-photos { display:flex; flex-direction:column; gap:6px; }
+      .strip-photos img {
+        width:220px; height:160px; object-fit:cover;
+        border-radius:3px; display:block;
+      }
+      .strip-top-band,.strip-bottom-band { height:6px; border-radius:3px; }
+      .strip-top-band { margin-bottom:8px; }
+      .strip-bottom-band { margin-top:8px; }
+      .strip-caption { font-family:'Comic Neue',cursive; font-size:.8rem; text-align:center; margin-top:6px; }
+      .strip-stickers { display:flex; justify-content:space-between; padding:0 4px; font-size:1.2rem; }
+
+      .action-btns { display:flex; gap:.75rem; justify-content:center; margin-top:1.25rem; flex-wrap:wrap; }
+      .btn-retake { padding:.7rem 1.5rem; background:var(--white); color:var(--pink-deep); border:2px solid var(--pink); border-radius:99px; cursor:pointer; font-family:'Fredoka',cursive; font-size:1rem; transition:transform .2s; }
+      .btn-retake:hover { transform:scale(1.04); }
+      .btn-download { padding:.7rem 1.5rem; background:linear-gradient(145deg,#ffb8d9,var(--pink-deep)); color:#fff; border:none; border-radius:99px; cursor:pointer; font-family:'Fredoka',cursive; font-size:1rem; box-shadow:0 6px 20px rgba(255,100,160,.35); transition:transform .2s; }
+      .btn-download:hover { transform:scale(1.04); }
+
+      /* ===== FRAMES PANEL ===== */
+      .frames-panel { background:var(--white); border-radius:20px; padding:1rem; box-shadow:0 8px 28px rgba(180,120,200,.15); max-height:600px; overflow-y:auto; }
+      .frames-panel h3 { font-family:'Fredoka',cursive; font-size:1.1rem; color:var(--pink-deep); margin:0 0 .75rem; text-align:center; }
+      .frames-category { margin-bottom:1rem; }
+      .cat-label { font-size:.72rem; font-weight:700; letter-spacing:.08em; color:var(--gray); text-transform:uppercase; margin-bottom:.4rem; padding:.25rem .5rem; background:var(--lavender); border-radius:99px; display:inline-block; }
+      .frames-row { display:flex; flex-wrap:wrap; gap:.5rem; }
+      .frame-thumb-btn { width:64px; height:80px; border-radius:10px; border:2px solid transparent; cursor:pointer; background:none; padding:3px; transition:transform .15s, border-color .15s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; box-shadow:0 2px 8px rgba(180,120,200,.15); }
+      .frame-thumb-btn:hover { transform:scale(1.08); }
+      .frame-thumb-btn.active { border-color:var(--pink-deep); box-shadow:0 0 0 3px rgba(255,107,168,.3); }
+      .thumb-preview { width:42px; height:54px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+      .thumb-label { font-size:.5rem; text-align:center; line-height:1.2; color:var(--gray); }
+
+      /* Waiting for next shot overlay */
+      .next-shot-msg { font-family:'Fredoka',cursive; font-size:1.5rem; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.5); position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(80,0,40,.4); border-radius:20px; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="index.html" class="logo font-display">photobooth kawaii <span class="heart">♡</span></a>
+      <nav aria-label="Main"><ul class="nav-main">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="photobooth.html" aria-current="page">Photobooth</a></li>
+        <li><a href="frames.html">Frames</a></li>
+      </ul></nav>
+      <span class="header-bow" aria-hidden="true">🎀</span>
+    </header>
+
+    <main>
+      <a href="choose-style.html" class="back-link">← back to style select</a>
+
+      <!-- STEP 1: Camera -->
+      <div class="step active" id="stepCamera">
+        <div class="cam-wrap">
+          <h1 class="cam-title">🎞️ 4-Photo Strip Session</h1>
+          <p style="color:var(--gray);margin-bottom:.75rem">4 poses, 3 seconds each — let's go! ♡</p>
+
+          <div class="shot-dots">
+            <div class="dot current" id="dot0"></div>
+            <div class="dot" id="dot1"></div>
+            <div class="dot" id="dot2"></div>
+            <div class="dot" id="dot3"></div>
+          </div>
+          <p class="shot-status" id="shotStatus">Photo 1 of 4 — Click Ready when you're set!</p>
+
+          <div class="video-shell" id="videoShell">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="countdown-overlay">
+              <div class="countdown-num" id="countNum"></div>
+            </div>
+            <div class="flash-cap" id="flashCap"></div>
+          </div>
+
+          <canvas id="canvas" width="640" height="480"></canvas>
+
+          <div style="margin-top:1rem">
+            <button class="cam-btn" id="btnReady" onclick="startShot()">✨ Ready / Start Pose</button>
+          </div>
+          <p id="camError" style="color:#e06090;margin-top:.75rem;display:none"></p>
+        </div>
+      </div>
+
+      <!-- STEP 2: Studio -->
+      <div class="step" id="stepStudio">
+        <div class="studio-layout">
+          <div class="preview-panel">
+            <h2>🎞️ Photostrip Design Studio</h2>
+            <div class="strip-container" id="stripContainer">
+              <div class="strip-top-band" id="stripTopBand"></div>
+              <div class="strip-stickers" id="stripStickersTop"><span id="ss0">🌸</span><span id="ss1">✨</span></div>
+              <div class="strip-photos" id="stripPhotos">
+                <img id="photo0" src="" alt="Photo 1" />
+                <img id="photo1" src="" alt="Photo 2" />
+                <img id="photo2" src="" alt="Photo 3" />
+                <img id="photo3" src="" alt="Photo 4" />
+              </div>
+              <div class="strip-stickers" id="stripStickersBot"><span id="ss2">💖</span><span id="ss3">🎀</span></div>
+              <div class="strip-caption" id="stripCaption">kawaii moments forever ♡</div>
+              <div class="strip-bottom-band" id="stripBottomBand"></div>
+            </div>
+            <div class="action-btns">
+              <button class="btn-retake" onclick="retake()">🔄 Retake All</button>
+              <button class="btn-download" onclick="downloadStrip()">⬇️ Download</button>
+            </div>
+            <p style="margin-top:.75rem"><a href="index.html" style="color:var(--gray);font-size:.85rem">← Back to Home</a></p>
+          </div>
+
+          <div class="frames-panel">
+            <h3>🎨 Pick a Frame</h3>
+            <div id="framesContainer"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="name">photobooth kawaii ♡</div>
+          <div class="sub">cute moments, forever</div>
+        </div>
+        <p class="copyright">© 2026 Photobooth Kawaii. All rights reserved. ♡</p>
+      </div>
+    </footer>
+
+    <script>
+    // ===== 50 PHOTOSTRIP FRAME TEMPLATES =====
+    const FRAMES = [
+      { id:1,  name:"Cherry Blossom", cat:"🌸 Floral",    bg:"#fff0f8", border:"#ff9ec8", accent:"#ffb8d9", s:["🌸","✿","💮","🌺"], caption:"bloom forever ✿", font:"#d4789c" },
+      { id:2,  name:"Rose Garden",    cat:"🌸 Floral",    bg:"#fff0f4", border:"#e87090", accent:"#ffb0c8", s:["🌹","🥀","🌹","🌷"], caption:"avec amour ♡",   font:"#c04070" },
+      { id:3,  name:"Lavender Dream", cat:"🌸 Floral",    bg:"#f8f0ff", border:"#c090e0", accent:"#d4b0f0", s:["💜","🌿","💐","✨"], caption:"dreamy lavender",  font:"#8050b0" },
+      { id:4,  name:"Sunflower Pop",  cat:"🌸 Floral",    bg:"#fffde8", border:"#e0b800", accent:"#ffe040", s:["🌻","☀️","🌻","🌼"], caption:"sunny days ☀",    font:"#a07000" },
+      { id:5,  name:"Daisy Fields",   cat:"🌸 Floral",    bg:"#f0ffe0", border:"#90d060", accent:"#b0e880", s:["🌼","🌿","🌸","🍃"], caption:"field of daisies", font:"#507030" },
+      { id:6,  name:"Kawaii Pink",    cat:"🍬 Kawaii",    bg:"#fff0f8", border:"#ff80c0", accent:"#ffa0d0", s:["🎀","✨","🎀","💖"], caption:"kawaii desu ♡",   font:"#e0508a" },
+      { id:7,  name:"Bunny Hop",      cat:"🍬 Kawaii",    bg:"#f4f0ff", border:"#c0b0f0", accent:"#d8d0ff", s:["🐰","🌸","🐰","🌸"], caption:"hop hop ✿",       font:"#8070c0" },
+      { id:8,  name:"Star Girl",      cat:"🍬 Kawaii",    bg:"#fffce0", border:"#e0c000", accent:"#ffe840", s:["⭐","🌟","⭐","✨"], caption:"you're a star ★",  font:"#908000" },
+      { id:9,  name:"Candy World",    cat:"🍬 Kawaii",    bg:"#fff4fc", border:"#ff80a0", accent:"#ffb0c8", s:["🍬","🍭","🍬","🍭"], caption:"sweet as candy",   font:"#d04060" },
+      { id:10, name:"Strawberry",     cat:"🍬 Kawaii",    bg:"#fff4f4", border:"#e05050", accent:"#ff8080", s:["🍓","💖","🍓","✿"], caption:"berry cute ♡",     font:"#c03040" },
+      { id:11, name:"Kitty Paws",     cat:"🍬 Kawaii",    bg:"#fff8f8", border:"#e09090", accent:"#ffb8b8", s:["🐱","🐾","🐱","💗"], caption:"nyaa~ ♡",          font:"#c06060" },
+      { id:12, name:"Sailor Moon",    cat:"🍬 Kawaii",    bg:"#f8f8ff", border:"#8090e0", accent:"#b0c0f8", s:["🌙","⭐","🌙","💫"], caption:"moon prism power",  font:"#4050a0" },
+      { id:13, name:"Cotton Candy",   cat:"🎨 Pastel",    bg:"#fdf0ff", border:"#c090d0", accent:"#e0b0e8", s:["🌈","💗","🌈","✨"], caption:"soft & sweet ♡",   font:"#9060a0" },
+      { id:14, name:"Mint Cream",     cat:"🎨 Pastel",    bg:"#f0fff8", border:"#60c0a0", accent:"#90d8b8", s:["🌿","💚","🌿","🍃"], caption:"fresh & minty",    font:"#307050" },
+      { id:15, name:"Baby Blue",      cat:"🎨 Pastel",    bg:"#f0f8ff", border:"#7090c0", accent:"#90b0d8", s:["🌊","💙","☁️","🫧"], caption:"serene blue ♡",    font:"#4060a0" },
+      { id:16, name:"Peach Sorbet",   cat:"🎨 Pastel",    bg:"#fff8f0", border:"#e09060", accent:"#f0b080", s:["🍑","🌸","🍑","✿"], caption:"peachy keen ♡",    font:"#c06030" },
+      { id:17, name:"Lilac Mist",     cat:"🎨 Pastel",    bg:"#f8f0ff", border:"#c0a0e0", accent:"#d8c0f0", s:["💜","🌸","🌷","✨"], caption:"lilac dreams",     font:"#8060b0" },
+      { id:18, name:"Butter Yellow",  cat:"🎨 Pastel",    bg:"#fffff0", border:"#d0b000", accent:"#ffe040", s:["🌼","🌟","🌼","☀️"], caption:"sunny & bright",   font:"#906000" },
+      { id:19, name:"Vintage Strip",  cat:"📷 Retro",     bg:"#faf5e8", border:"#a08060", accent:"#c0a070", s:["📷","🎞️","📷","🎞️"], caption:"captured forever",  font:"#604020" },
+      { id:20, name:"Film Noir",      cat:"📷 Retro",     bg:"#f2f2f2", border:"#404040", accent:"#606060", s:["🎬","⬛","🎬","📽️"], caption:"lights, camera!",  font:"#202020" },
+      { id:21, name:"Kodak Moment",   cat:"📷 Retro",     bg:"#fff8e0", border:"#d09010", accent:"#e8b820", s:["📸","🌟","📸","✨"], caption:"a kodak moment",    font:"#805000" },
+      { id:22, name:"Disco Fever",    cat:"📷 Retro",     bg:"#f0f0ff", border:"#9070d0", accent:"#c090e8", s:["🪩","✨","🪩","💫"], caption:"disco queen ♡",    font:"#5030a0" },
+      { id:23, name:"Pop Art",        cat:"📷 Retro",     bg:"#ffff80", border:"#ff0000", accent:"#ff6000", s:["🟡","🔴","🟡","🔵"], caption:"pop art vibes!",   font:"#800000" },
+      { id:24, name:"Retro Pink",     cat:"📷 Retro",     bg:"#ffe8f8", border:"#e04090", accent:"#ff60a0", s:["💋","🌸","💋","✨"], caption:"groovy baby ♡",    font:"#900040" },
+      { id:25, name:"Winter Frost",   cat:"❄️ Seasonal",  bg:"#f0f8ff", border:"#7090c0", accent:"#a0c0e0", s:["❄️","⛄","❄️","🌨️"], caption:"frosty & cozy ✿", font:"#4060a0" },
+      { id:26, name:"Summer Breeze",  cat:"❄️ Seasonal",  bg:"#f0fcff", border:"#50b0d0", accent:"#70c8e8", s:["🌊","🌞","🌊","🌴"], caption:"summer lovin' ♡",  font:"#205070" },
+      { id:27, name:"Autumn Leaves",  cat:"❄️ Seasonal",  bg:"#fff8e8", border:"#c07020", accent:"#e09040", s:["🍂","🍁","🍂","🍄"], caption:"golden autumn",    font:"#703010" },
+      { id:28, name:"Spring Fresh",   cat:"❄️ Seasonal",  bg:"#f4fff0", border:"#60b060", accent:"#80c880", s:["🌱","🌸","🌱","🦋"], caption:"spring is here ♡", font:"#305030" },
+      { id:29, name:"Xmas Magic",     cat:"❄️ Seasonal",  bg:"#fff4f4", border:"#c02020", accent:"#e04040", s:["🎄","🎁","❄️","⭐"], caption:"holiday magic ✿",  font:"#900020" },
+      { id:30, name:"Halloween",      cat:"❄️ Seasonal",  bg:"#fff8e8", border:"#906030", accent:"#c08050", s:["🎃","🦇","🎃","🕷️"], caption:"boo! so cute ♡",   font:"#503010" },
+      { id:31, name:"Pure White",     cat:"🤍 Minimal",   bg:"#ffffff", border:"#e0e0e0", accent:"#f0f0f0", s:["✦","○","✦","○"], caption:"simply you ♡",      font:"#888888" },
+      { id:32, name:"Gold Foil",      cat:"🤍 Minimal",   bg:"#fffbf0", border:"#c8a800", accent:"#e0c000", s:["✨","◇","✨","◇"], caption:"golden moment",      font:"#706000" },
+      { id:33, name:"Silver Lining",  cat:"🤍 Minimal",   bg:"#f8f8f8", border:"#909090", accent:"#b0b0b0", s:["◈","◇","◈","○"], caption:"silver lining ✦",    font:"#505050" },
+      { id:34, name:"Marble Blush",   cat:"🤍 Minimal",   bg:"#fff8f6", border:"#d0a090", accent:"#e8b8a8", s:["◇","✦","◇","✦"], caption:"graceful & chic",    font:"#806050" },
+      { id:35, name:"Ink & Paper",    cat:"🤍 Minimal",   bg:"#faf8f0", border:"#806040", accent:"#a08060", s:["🖊️","📝","🖊️","✦"], caption:"written in love",  font:"#503020" },
+      { id:36, name:"Rainbow",        cat:"🌈 Fun",       bg:"#fff8ff", border:"#c080c0", accent:"#e0a0e0", s:["🌈","☁️","🌈","⭐"], caption:"over the rainbow", font:"#806090" },
+      { id:37, name:"Space Kei",      cat:"🌈 Fun",       bg:"#0a0820", border:"#4040a0", accent:"#6060c0", s:["🚀","⭐","🪐","✨"], caption:"to infinity ✦",    font:"#9090ff" },
+      { id:38, name:"Mermaid",        cat:"🌈 Fun",       bg:"#e8f8fc", border:"#3090b0", accent:"#50b0d0", s:["🧜","🐚","🌊","✨"], caption:"ocean dreams ♡",   font:"#105070" },
+      { id:39, name:"Magic Girl",     cat:"🌈 Fun",       bg:"#fdf0ff", border:"#c060c0", accent:"#e090d0", s:["🌙","⭐","🔮","✨"], caption:"magical girl ★",   font:"#9030a0" },
+      { id:40, name:"Y2K Vibes",      cat:"🌈 Fun",       bg:"#f0fff8", border:"#80a0c0", accent:"#a0c0e0", s:["💿","📱","💿","⚡"], caption:"y2k forever",      font:"#304080" },
+      { id:41, name:"Rose Gold",      cat:"💅 Glam",      bg:"#fff8f4", border:"#d09080", accent:"#e8b0a0", s:["🌹","💗","💅","✦"], caption:"rose gold queen",   font:"#905040" },
+      { id:42, name:"Amethyst",       cat:"💅 Glam",      bg:"#f8f0ff", border:"#9070c0", accent:"#b090d8", s:["💎","🔮","💎","✨"], caption:"crystal clear ✦",  font:"#6040a0" },
+      { id:43, name:"Champagne",      cat:"💅 Glam",      bg:"#fffcf0", border:"#c09848", accent:"#d8b060", s:["🥂","✨","🥂","💫"], caption:"celebrate you ♡",  font:"#806030" },
+      { id:44, name:"Holographic",    cat:"💅 Glam",      bg:"#f8f0ff", border:"#a080b0", accent:"#c0a0d0", s:["🦄","🌈","✨","💫"], caption:"holo dream ✦",     font:"#7050a0" },
+      { id:45, name:"Black Lace",     cat:"💅 Glam",      bg:"#fdf4f8", border:"#2a1020", accent:"#4a2040", s:["🖤","🌹","🖤","🌹"], caption:"dark romance ♡",   font:"#1a0810" },
+      { id:46, name:"Forest Fairy",   cat:"🌿 Nature",    bg:"#f0fff4", border:"#408040", accent:"#60a060", s:["🌿","🦋","🌸","🍃"], caption:"forest fairy ✿",   font:"#204020" },
+      { id:47, name:"Ocean Breeze",   cat:"🌿 Nature",    bg:"#e8f8ff", border:"#2080a0", accent:"#40a0c0", s:["🌊","🐚","🌊","🫧"], caption:"ocean child ♡",    font:"#104060" },
+      { id:48, name:"Sunset Glow",    cat:"🌿 Nature",    bg:"#fff8f0", border:"#c05020", accent:"#e07040", s:["🌅","🌸","🌅","✨"], caption:"golden hour ♡",     font:"#602010" },
+      { id:49, name:"Sakura Park",    cat:"🌿 Nature",    bg:"#fff4f8", border:"#e07090", accent:"#f090b0", s:["🌸","🌸","🌸","🌸"], caption:"sakura forever ♡", font:"#c04060" },
+      { id:50, name:"Moonlit Night",  cat:"🌿 Nature",    bg:"#0e0c24", border:"#4040a0", accent:"#6060c0", s:["🌙","⭐","🌙","💫"], caption:"moonlit dreams ✦", font:"#8090f0" },
+    ];
+
+    let photos = [];
+    let shotIndex = 0;
+    let isShooting = false;
+    let videoStream = null;
+    let currentFrame = FRAMES[0];
+    const TOTAL = 4;
+
+    async function initCamera() {
+      const video = document.getElementById('video');
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:1280}, height:{ideal:960} }, audio:false });
+        video.srcObject = videoStream;
+      } catch(e) {
+        const err = document.getElementById('camError');
+        err.style.display='block';
+        err.textContent='📷 Camera access denied. Please allow camera permission and reload.';
+        document.getElementById('btnReady').disabled=true;
+      }
+    }
+
+    function updateDots() {
+      for(let i=0;i<TOTAL;i++){
+        const d = document.getElementById('dot'+i);
+        d.className = 'dot' + (i<shotIndex?' done':i===shotIndex?' current':'');
+      }
+      const s = document.getElementById('shotStatus');
+      if(shotIndex < TOTAL) s.textContent = `Photo ${shotIndex+1} of ${TOTAL} — Click Ready when you're set!`;
+    }
+
+    function startShot() {
+      if(isShooting) return;
+      isShooting = true;
+      document.getElementById('btnReady').disabled = true;
+      const el = document.getElementById('countNum');
+      let count = 3;
+
+      function tick() {
+        el.className = 'countdown-num';
+        void el.offsetWidth;
+        el.textContent = count;
+        el.className = 'countdown-num show';
+        count--;
+        if(count >= 0) setTimeout(tick, 900);
+        else setTimeout(()=>{ el.textContent=''; captureShot(); }, 400);
+      }
+      tick();
+    }
+
+    function captureShot() {
+      const flash = document.getElementById('flashCap');
+      flash.classList.add('pop');
+      try {
+        const ctx = new AudioContext();
+        const buf = ctx.createBuffer(1, ctx.sampleRate*0.15, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(ctx.sampleRate*0.03));
+        const src=ctx.createBufferSource(); src.buffer=buf; src.connect(ctx.destination); src.start();
+      } catch(e){}
+
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx2 = canvas.getContext('2d');
+      canvas.width = video.videoWidth||640;
+      canvas.height = video.videoHeight||480;
+      ctx2.save();
+      ctx2.translate(canvas.width,0); ctx2.scale(-1,1);
+      ctx2.drawImage(video,0,0);
+      ctx2.restore();
+      photos[shotIndex] = canvas.toDataURL('image/jpeg', 0.92);
+
+      setTimeout(()=>{
+        flash.classList.remove('pop');
+        shotIndex++;
+        isShooting = false;
+
+        if(shotIndex < TOTAL) {
+          updateDots();
+          document.getElementById('btnReady').disabled = false;
+          document.getElementById('shotStatus').textContent = `📸 Got it! Photo ${shotIndex+1} of ${TOTAL} next ♡`;
+        } else {
+          goToStudio();
+        }
+      }, 250);
+    }
+
+    function goToStudio() {
+      if(videoStream) videoStream.getTracks().forEach(t=>t.stop());
+      // Put photos into img tags
+      for(let i=0;i<TOTAL;i++) document.getElementById('photo'+i).src = photos[i];
+      document.getElementById('stepCamera').classList.remove('active');
+      document.getElementById('stepStudio').classList.add('active');
+      buildFramePicker();
+      applyFrame(FRAMES[0]);
+    }
+
+    function retake() {
+      photos = []; shotIndex = 0;
+      document.getElementById('stepStudio').classList.remove('active');
+      document.getElementById('stepCamera').classList.add('active');
+      document.getElementById('btnReady').disabled = false;
+      document.getElementById('countNum').textContent = '';
+      updateDots();
+      initCamera();
+    }
+
+    // ===== Frames =====
+    function buildFramePicker() {
+      const container = document.getElementById('framesContainer');
+      container.innerHTML = '';
+      const cats = {};
+      FRAMES.forEach(f => { if(!cats[f.cat]) cats[f.cat]=[]; cats[f.cat].push(f); });
+      Object.entries(cats).forEach(([cat, frames]) => {
+        const sec = document.createElement('div');
+        sec.className = 'frames-category';
+        sec.innerHTML = `<div class="cat-label">${cat}</div><div class="frames-row"></div>`;
+        container.appendChild(sec);
+        const row = sec.querySelector('.frames-row');
+        frames.forEach(f => {
+          const btn = document.createElement('button');
+          btn.className = 'frame-thumb-btn'+(f.id===1?' active':'');
+          btn.title = f.name;
+          btn.innerHTML = `<div class="thumb-preview" style="background:${f.bg};border:2px solid ${f.border}">${f.s[0]}</div><span class="thumb-label">${f.name}</span>`;
+          btn.onclick = () => {
+            document.querySelectorAll('.frame-thumb-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFrame(f);
+          };
+          row.appendChild(btn);
+        });
+      });
+    }
+
+    function applyFrame(f) {
+      currentFrame = f;
+      const c = document.getElementById('stripContainer');
+      c.style.background = f.bg;
+      c.style.boxShadow = `6px 8px 32px ${f.border}55`;
+      document.getElementById('stripTopBand').style.background = f.accent;
+      document.getElementById('stripBottomBand').style.background = f.accent;
+      c.style.border = `4px solid ${f.border}`;
+      document.getElementById('ss0').textContent = f.s[0];
+      document.getElementById('ss1').textContent = f.s[1];
+      document.getElementById('ss2').textContent = f.s[2];
+      document.getElementById('ss3').textContent = f.s[3];
+      const cap = document.getElementById('stripCaption');
+      cap.textContent = f.caption;
+      cap.style.color = f.font;
+    }
+
+    // ===== Download =====
+    async function downloadStrip() {
+      const f = currentFrame;
+      const PAD = 16, PHOTO_W = 360, PHOTO_H = 270, GAP = 6;
+      const W = PHOTO_W + PAD*2;
+      const H = PAD + (PHOTO_H + GAP)*TOTAL + 60 + PAD;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = f.bg;
+      ctx.fillRect(0,0,W,H);
+
+      // Border
+      ctx.strokeStyle = f.border;
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4,4,W-8,H-8);
+
+      // Top accent
+      ctx.fillStyle = f.accent;
+      ctx.fillRect(0,0,W,8);
+      ctx.fillRect(0,H-8,W,8);
+
+      // Load all photos
+      const imgs = [];
+      for(let i=0;i<TOTAL;i++){
+        const img = new Image();
+        img.src = photos[i];
+        await new Promise(r=>img.onload=r);
+        imgs.push(img);
+      }
+
+      // Draw photos
+      for(let i=0;i<TOTAL;i++){
+        const y = PAD + 8 + i*(PHOTO_H+GAP);
+        ctx.drawImage(imgs[i], PAD, y, PHOTO_W, PHOTO_H);
+      }
+
+      // Stickers
+      ctx.font = '24px serif';
+      ctx.fillText(f.s[0], PAD, PAD+30);
+      ctx.fillText(f.s[1], W-PAD-30, PAD+30);
+      ctx.fillText(f.s[2], PAD, H-PAD-8);
+      ctx.fillText(f.s[3], W-PAD-30, H-PAD-8);
+
+      // Caption
+      ctx.fillStyle = f.font;
+      ctx.font = '600 18px Comic Neue, cursive';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.caption, W/2, H-PAD-16);
+
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `kawaii-strip-${f.name.replace(/\s+/g,'-').toLowerCase()}.png`;
+      a.click();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => { initCamera(); updateDots(); });
+    </script>
+  </body>
+</html>
