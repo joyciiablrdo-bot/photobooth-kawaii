@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Photobooth Kawaii — Home</title>
+    <title>Photobooth Kawaii — Take Photos!</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -11,8 +11,230 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .booth-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 2rem 1rem 3rem;
+      }
+
+      .booth-title {
+        font-family: 'Fredoka', sans-serif;
+        font-size: clamp(2rem, 6vw, 3.5rem);
+        color: #ff6ba8;
+        text-align: center;
+        line-height: 1.15;
+        margin: 0;
+        text-shadow: 2px 2px 0 #ffe0f0;
+      }
+
+      .booth-title .heart {
+        color: #ff8cc8;
+        display: inline-block;
+        animation: heartbeat 1.4s ease-in-out infinite;
+      }
+
+      @keyframes heartbeat {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+      }
+
+      .booth-subtitle {
+        font-family: 'Comic Neue', cursive;
+        font-size: 1.1rem;
+        color: #b07cc6;
+        text-align: center;
+        margin: 0;
+      }
+
+      .viewfinder {
+        position: relative;
+        width: min(380px, 90vw);
+        aspect-ratio: 3 / 4;
+        background: linear-gradient(145deg, #fff0f8 0%, #f8e8ff 100%);
+        border-radius: 2rem;
+        border: 3px solid #ffb8d9;
+        box-shadow: 0 8px 32px #ffb8d940, 0 2px 0 #ffe0f0 inset;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .viewfinder::before,
+      .viewfinder::after {
+        content: '';
+        position: absolute;
+        width: 28px;
+        height: 28px;
+        border-color: #ff8cc8;
+        border-style: solid;
+      }
+      .viewfinder::before {
+        top: 14px; left: 14px;
+        border-width: 3px 0 0 3px;
+        border-radius: 6px 0 0 0;
+      }
+      .viewfinder::after {
+        bottom: 14px; right: 14px;
+        border-width: 0 3px 3px 0;
+        border-radius: 0 0 6px 0;
+      }
+
+      .viewfinder-corner-tr,
+      .viewfinder-corner-bl {
+        position: absolute;
+        width: 28px;
+        height: 28px;
+        border-color: #ff8cc8;
+        border-style: solid;
+      }
+      .viewfinder-corner-tr {
+        top: 14px; right: 14px;
+        border-width: 3px 3px 0 0;
+        border-radius: 0 6px 0 0;
+      }
+      .viewfinder-corner-bl {
+        bottom: 14px; left: 14px;
+        border-width: 0 0 3px 3px;
+        border-radius: 0 0 0 6px;
+      }
+
+      .viewfinder-idle {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      .viewfinder-idle svg {
+        width: 90px;
+        height: 90px;
+        opacity: 0.55;
+      }
+
+      .viewfinder-idle p {
+        font-family: 'Comic Neue', cursive;
+        font-size: 0.9rem;
+        color: #c4a0d4;
+        text-align: center;
+        margin: 0;
+      }
+
+      .sticker {
+        position: absolute;
+        font-size: 1.6rem;
+        animation: stickerFloat 3s ease-in-out infinite;
+        pointer-events: none;
+      }
+      .sticker:nth-child(1) { top: -18px; left: 18px; animation-delay: 0s; }
+      .sticker:nth-child(2) { top: -18px; right: 18px; animation-delay: 0.6s; }
+      .sticker:nth-child(3) { bottom: -18px; left: 30px; animation-delay: 1.1s; }
+      .sticker:nth-child(4) { bottom: -18px; right: 30px; animation-delay: 0.4s; }
+      .sticker:nth-child(5) { top: 40%; left: -22px; animation-delay: 0.9s; }
+      .sticker:nth-child(6) { top: 40%; right: -22px; animation-delay: 0.2s; }
+
+      @keyframes stickerFloat {
+        0%, 100% { transform: translateY(0) rotate(-5deg); }
+        50% { transform: translateY(-6px) rotate(5deg); }
+      }
+
+      .btn-camera {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff8cc8 0%, #ff6ba8 100%);
+        border: 4px solid #fff;
+        box-shadow: 0 6px 24px #ff8cc860, 0 0 0 3px #ffb8d9;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        text-decoration: none;
+      }
+      .btn-camera:hover {
+        transform: scale(1.1) rotate(-4deg);
+        box-shadow: 0 10px 32px #ff8cc890, 0 0 0 4px #ff6ba8;
+      }
+      .btn-camera:active { transform: scale(0.96); }
+      .btn-camera svg {
+        width: 40px;
+        height: 40px;
+        fill: #fff;
+      }
+
+      .btn-label {
+        font-family: 'Comic Neue', cursive;
+        font-size: 0.95rem;
+        color: #b07cc6;
+        text-align: center;
+        margin: 0;
+      }
+
+      .how-strip {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 560px;
+        margin: 0 auto;
+      }
+
+      .how-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+        width: 120px;
+        text-align: center;
+      }
+
+      .how-step .icon { font-size: 2rem; }
+
+      .how-step .num {
+        font-family: 'Fredoka', sans-serif;
+        font-size: 0.75rem;
+        background: #ff8cc8;
+        color: #fff;
+        border-radius: 50px;
+        padding: 1px 10px;
+      }
+
+      .how-step p {
+        font-family: 'Comic Neue', cursive;
+        font-size: 0.82rem;
+        color: #b07cc6;
+        margin: 0;
+      }
+
+      .section-divider {
+        font-family: 'Fredoka', sans-serif;
+        font-size: 0.85rem;
+        color: #d4a0c8;
+        letter-spacing: 0.1em;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+        max-width: 400px;
+      }
+      .section-divider::before,
+      .section-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #ffb8d9, transparent);
+      }
+    </style>
   </head>
   <body>
+
     <div class="bg-floats" aria-hidden="true">
       <svg class="f1" width="64" height="48" viewBox="0 0 64 48">
         <ellipse cx="32" cy="28" rx="28" ry="16" fill="#fff" stroke="#c9b8e8" stroke-width="2" />
@@ -51,15 +273,13 @@
     </div>
 
     <header class="site-header">
-      <a href="index.html" class="logo font-display"
-        >photobooth kawaii <span class="heart">♡</span></a
-      >
+      <a href="index.html" class="logo font-display">
+        photobooth kawaii <span class="heart">♡</span>
+      </a>
       <nav aria-label="Main">
         <ul class="nav-main">
           <li><a href="index.html" aria-current="page">Home</a></li>
           <li><a href="about.html">About</a></li>
-          <li><a href="photobooth.html">Photobooth</a></li>
-          <li><a href="frames.html">Frames</a></li>
           <li><a href="contact.html">Contact</a></li>
         </ul>
       </nav>
@@ -67,25 +287,75 @@
     </header>
 
     <main>
-      <h1 class="hero-title">
-        <span class="line1"
-          ><span class="bow-char"><span class="mini-bow" aria-hidden="true">🎀</span>photobooth</span></span
-        >
-        <span class="line2">kawaii</span>
-      </h1>
-      <p class="tagline"><span aria-hidden="true">♡</span> cute moments, forever <span aria-hidden="true">♡</span></p>
+      <div class="booth-wrap">
 
-      <div class="cta-wrap">
-        <a href="photobooth.html" aria-label="Start photobooth">
-          <div class="cta-circle">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M9 4h6l1.5 2H20a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h3.5L9 4zm3 15a5 5 0 100-10 5 5 0 000 10z"
-              />
-            </svg>
+        <h1 class="booth-title">
+          take your photos! <span class="heart">♡</span>
+        </h1>
+        <p class="booth-subtitle">strike a pose, pick your style, print your memories ✿</p>
+
+        <div style="position: relative; display: inline-block;">
+          <span class="sticker">🌸</span>
+          <span class="sticker">⭐</span>
+          <span class="sticker">🎀</span>
+          <span class="sticker">💕</span>
+          <span class="sticker">✨</span>
+          <span class="sticker">🍓</span>
+
+          <div class="viewfinder">
+            <div class="viewfinder-corner-tr"></div>
+            <div class="viewfinder-corner-bl"></div>
+            <div class="viewfinder-idle">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="32" width="80" height="52" rx="10" fill="#ffb8d9" stroke="#ff8cc8" stroke-width="2.5"/>
+                <circle cx="50" cy="58" r="20" fill="#fff0f8" stroke="#ff8cc8" stroke-width="2.5"/>
+                <circle cx="50" cy="58" r="13" fill="#f8d0ec" stroke="#ff8cc8" stroke-width="2"/>
+                <circle cx="44" cy="52" r="4" fill="#fff" opacity="0.6"/>
+                <rect x="30" y="22" width="24" height="12" rx="4" fill="#ffb8d9" stroke="#ff8cc8" stroke-width="2"/>
+                <rect x="62" y="24" width="16" height="10" rx="3" fill="#ffe066" stroke="#f0c040" stroke-width="1.5"/>
+                <circle cx="78" cy="42" r="5" fill="#ff8cc8" stroke="#ff6ba8" stroke-width="1.5"/>
+                <circle cx="46" cy="56" r="2" fill="#4a3728"/>
+                <circle cx="54" cy="56" r="2" fill="#4a3728"/>
+                <path d="M45 62 Q50 66 55 62" stroke="#4a3728" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              </svg>
+              <p>click the button below<br>to start your session ♡</p>
+            </div>
           </div>
+        </div>
+
+        <!-- ✅ Camera button → choosestyle.html -->
+        <a href="choosestyle.html" class="btn-camera" aria-label="Start photobooth session">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M9 4h6l1.5 2H20a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h3.5L9 4zm3 15a5 5 0 100-10 5 5 0 000 10z"/>
+          </svg>
         </a>
-        <p class="cta-label">— click to start! — ♡</p>
+        <p class="btn-label">— tap to begin! ♡ —</p>
+
+        <div class="section-divider">✿ how it works ✿</div>
+
+        <div class="how-strip">
+          <div class="how-step">
+            <span class="icon">📸</span>
+            <span class="num">step 1</span>
+            <p>tap the camera button to start</p>
+          </div>
+          <div class="how-step">
+            <span class="icon">🎨</span>
+            <span class="num">step 2</span>
+            <p>choose your frame style</p>
+          </div>
+          <div class="how-step">
+            <span class="icon">🌸</span>
+            <span class="num">step 3</span>
+            <p>strike your cutest pose!</p>
+          </div>
+          <div class="how-step">
+            <span class="icon">💾</span>
+            <span class="num">step 4</span>
+            <p>save & share your strip</p>
+          </div>
+        </div>
+
       </div>
     </main>
 
@@ -103,5 +373,6 @@
         <p class="copyright">© 2026 Photobooth Kawaii. All rights reserved. ♡</p>
       </div>
     </footer>
+
   </body>
 </html>
