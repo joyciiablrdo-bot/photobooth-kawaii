@@ -1,60 +1,10 @@
-import { useEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 
-// Global navigate function — populated once the router mounts
-let __navigate: ((to: string) => void) | null = null;
+// ─── Types ───────────────────────────────────────────────
+type PageId = "home" | "about" | "contact" | "privacy" | "choosestyle" | "photobooth";
 
-function NavigationCapture() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    __navigate = navigate;
-    return () => { __navigate = null; };
-  }, [navigate]);
-  return null;
-}
-
-function makePage(css: string, html: string, js: string) {
-  return function Page() {
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      // 1. Inject CSS
-      const styleEl = document.createElement("style");
-      styleEl.setAttribute("data-pk-page", "1");
-      styleEl.textContent = css;
-      document.head.appendChild(styleEl);
-
-      // 2. Set HTML
-      if (!ref.current) return;
-      ref.current.innerHTML = html;
-
-      // 3. Intercept link clicks → React Router
-      const onClick = (e: MouseEvent) => {
-        const a = (e.target as HTMLElement).closest("a");
-        if (!a) return;
-        const href = a.getAttribute("href");
-        if (href && href.startsWith("/") && !href.startsWith("//")) {
-          e.preventDefault();
-          __navigate?.(href);
-        }
-      };
-      ref.current.addEventListener("click", onClick);
-
-      // 4. Run page JS
-      try { new Function(js)(); } catch (err) { console.warn(err); }
-
-      return () => {
-        ref.current?.removeEventListener("click", onClick);
-        // Remove only styles injected by this page
-        document.querySelectorAll("style[data-pk-page]").forEach(el => el.remove());
-      };
-    }, []);
-
-    return <div ref={ref} style={{ minHeight: "100vh" }} />;
-  };
-}
-
-const HomePage = makePage(`:root {
+// ─── Page data ───────────────────────────────────────────
+const HOME_CSS  = `:root {
   --pink: #ff85a1;
   --pink-light: #ffb3c6;
   --pink-dark: #e05c7a;
@@ -332,7 +282,8 @@ footer {
 .footer-copy { color:#b08090;font-size:0.82rem;font-weight:600; }
 
 .sparkle { position:absolute;z-index:6;pointer-events:none;animation:sparkle-twinkle 2s ease-in-out infinite; }
-@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`, `<!-- NAV -->
+@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`;
+const HOME_HTML = `<!-- NAV -->
 <nav>
   <a href="/" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
   <ul class="nav-links">
@@ -563,7 +514,8 @@ for (let i = 0; i < 7; i++) {
   </svg>\`;
   bfContainer.appendChild(bf);
 }
-</script>`, `// Generate grass blades
+</script>`;
+const HOME_JS   = `// Generate grass blades
 const grass = document.getElementById('grass');
 for (let i = 0; i < 80; i++) {
   const blade = document.createElement('div');
@@ -625,9 +577,9 @@ for (let i = 0; i < 7; i++) {
     <path d="M18 2 Q20 0 21 1" stroke="#5c3d2e" stroke-width="1" fill="none" stroke-linecap="round"/>
   </svg>\`;
   bfContainer.appendChild(bf);
-}`);
+}`;
 
-const AboutPage = makePage(`@font-face {
+const ABOUT_CSS  = `@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -1213,7 +1165,8 @@ const AboutPage = makePage(`@font-face {
         .jam-card { padding: 1.6rem 1.4rem; }
         .intro-card { padding: 1.8rem 1.4rem; }
         .jam-spread-wrap { padding: 2rem 1rem 3rem; }
-      }`, `<!-- Fixed side strawberries -->
+      }`;
+const ABOUT_HTML = `<!-- Fixed side strawberries -->
     <span class="side-strawberry left">🍓</span>
     <span class="side-strawberry right">🍓</span>
 
@@ -1422,7 +1375,8 @@ const AboutPage = makePage(`@font-face {
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`, `// Hamburger menu toggle
+    </script>`;
+const ABOUT_JS   = `// Hamburger menu toggle
       (function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
@@ -1432,9 +1386,9 @@ const AboutPage = makePage(`@font-face {
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`);
+      })();`;
 
-const ContactPage = makePage(`@font-face {
+const CONTACT_CSS  = `@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -2007,7 +1961,8 @@ const ContactPage = makePage(`@font-face {
         .intro-card { padding: 1.8rem 1.4rem; }
         .jam-spread-wrap { padding: 2rem 1rem 3rem; }
         .social-icon { width: 50px; height: 50px; font-size: 1.3rem; }
-      }`, `<!-- Fixed side strawberries -->
+      }`;
+const CONTACT_HTML = `<!-- Fixed side strawberries -->
     <span class="side-strawberry left" aria-hidden="true">🍓</span>
     <span class="side-strawberry right" aria-hidden="true">🍓</span>
 
@@ -2213,7 +2168,8 @@ const ContactPage = makePage(`@font-face {
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`, `(function () {
+    </script>`;
+const CONTACT_JS   = `(function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
         if (!btn || !nav) return;
@@ -2222,9 +2178,9 @@ const ContactPage = makePage(`@font-face {
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`);
+      })();`;
 
-const PrivacyPage = makePage(`@font-face {
+const PRIVACY_CSS  = `@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -2726,7 +2682,8 @@ const PrivacyPage = makePage(`@font-face {
         .jam-card { padding: 1.6rem 1.4rem; }
         .intro-card { padding: 1.8rem 1.4rem; }
         .jam-spread-wrap { padding: 2rem 1rem 3rem; }
-      }`, `<!-- Fixed side strawberries -->
+      }`;
+const PRIVACY_HTML = `<!-- Fixed side strawberries -->
     <span class="side-strawberry left">🍓</span>
     <span class="side-strawberry right">🍓</span>
 
@@ -2986,7 +2943,8 @@ const PrivacyPage = makePage(`@font-face {
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`, `(function () {
+    </script>`;
+const PRIVACY_JS   = `(function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
         if (!btn || !nav) return;
@@ -2995,9 +2953,9 @@ const PrivacyPage = makePage(`@font-face {
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`);
+      })();`;
 
-const ChoosestylePage = makePage(`@font-face {
+const CHOOSESTYLE_CSS  = `@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -3428,7 +3386,8 @@ const ChoosestylePage = makePage(`@font-face {
         color: #a05070;
         font-weight: 600;
         line-height: 1.6;
-      }`, `<!-- Floating background decorations -->
+      }`;
+const CHOOSESTYLE_HTML = `<!-- Floating background decorations -->
     <div class="bg-floats" aria-hidden="true">
       <svg class="f1" width="56" height="42" viewBox="0 0 64 48">
         <ellipse cx="32" cy="28" rx="28" ry="16" fill="#fff" stroke="#c9b8e8" stroke-width="2"/>
@@ -3550,7 +3509,8 @@ const ChoosestylePage = makePage(`@font-face {
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`, `// Hamburger menu toggle
+    </script>`;
+const CHOOSESTYLE_JS   = `// Hamburger menu toggle
       (function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
@@ -3560,9 +3520,9 @@ const ChoosestylePage = makePage(`@font-face {
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`);
+      })();`;
 
-const PhotoboothPage = makePage(`:root {
+const PHOTOBOOTH_CSS  = `:root {
   --pink: #ff85a1;
   --pink-light: #ffb3c6;
   --pink-dark: #e05c7a;
@@ -4021,7 +3981,8 @@ footer {
 
 /* Sparkle stars */
 .sparkle { position:absolute; z-index:6; pointer-events:none; animation: sparkle-twinkle 2s ease-in-out infinite; }
-@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`, `<!-- NAV -->
+@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`;
+const PHOTOBOOTH_HTML = `<!-- NAV -->
 <nav>
   <a href="#" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
   <ul class="nav-links">
@@ -4275,7 +4236,8 @@ for (let i = 0; i < 7; i++) {
   </svg>\`;
   bfContainer.appendChild(bf);
 }
-</script>`, `// Generate grass blades
+</script>`;
+const PHOTOBOOTH_JS   = `// Generate grass blades
 const grass = document.getElementById('grass');
 for (let i = 0; i < 80; i++) {
   const blade = document.createElement('div');
@@ -4337,20 +4299,97 @@ for (let i = 0; i < 7; i++) {
     <path d="M18 2 Q20 0 21 1" stroke="#5c3d2e" stroke-width="1" fill="none" stroke-linecap="round"/>
   </svg>\`;
   bfContainer.appendChild(bf);
-}`);
+}`;
 
+
+const PAGES: Record<PageId, { css: string; html: string; js: string }> = {
+  home:        { css: HOME_CSS,        html: HOME_HTML,        js: HOME_JS },
+  about:       { css: ABOUT_CSS,       html: ABOUT_HTML,       js: ABOUT_JS },
+  contact:     { css: CONTACT_CSS,     html: CONTACT_HTML,     js: CONTACT_JS },
+  privacy:     { css: PRIVACY_CSS,     html: PRIVACY_HTML,     js: PRIVACY_JS },
+  choosestyle: { css: CHOOSESTYLE_CSS, html: CHOOSESTYLE_HTML, js: CHOOSESTYLE_JS },
+  photobooth:  { css: PHOTOBOOTH_CSS,  html: PHOTOBOOTH_HTML,  js: PHOTOBOOTH_JS },
+};
+
+// Map URL paths → page IDs
+const PATH_MAP: Record<string, PageId> = {
+  "/":            "home",
+  "/about":       "about",
+  "/contact":     "contact",
+  "/privacy":     "privacy",
+  "/choosestyle": "choosestyle",
+  "/photobooth":  "photobooth",
+};
+
+function getPageFromPath(path: string): PageId {
+  return PATH_MAP[path] ?? "home";
+}
+
+// ─── Page renderer ───────────────────────────────────────
+function Page({ id, navigate }: { id: PageId; navigate: (p: PageId) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { css, html, js } = PAGES[id];
+
+  useEffect(() => {
+    // Inject CSS
+    const style = document.createElement("style");
+    style.setAttribute("data-pk", id);
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    // Set HTML
+    if (ref.current) {
+      ref.current.innerHTML = html;
+
+      // Intercept all internal link clicks
+      const handleClick = (e: MouseEvent) => {
+        const anchor = (e.target as HTMLElement).closest("a");
+        if (!anchor) return;
+        const href = anchor.getAttribute("href");
+        if (!href) return;
+
+        // Internal SPA links
+        if (href.startsWith("/") && !href.startsWith("//")) {
+          e.preventDefault();
+          const nextPage = getPageFromPath(href);
+          window.history.pushState({}, "", href);
+          navigate(nextPage);
+          window.scrollTo(0, 0);
+        }
+        // External links (social media etc) — let them open normally
+      };
+
+      ref.current.addEventListener("click", handleClick);
+
+      // Run page script
+      try { new Function(js)(); } catch (err) { /* silent */ }
+
+      return () => {
+        ref.current?.removeEventListener("click", handleClick);
+        document.querySelector(`style[data-pk="${id}"]`)?.remove();
+      };
+    }
+
+    return () => {
+      document.querySelector(`style[data-pk="${id}"]`)?.remove();
+    };
+  }, [id]);
+
+  return <div ref={ref} style={{ minHeight: "100vh" }} />;
+}
+
+// ─── App ─────────────────────────────────────────────────
 export default function App() {
-  return (
-    <BrowserRouter>
-      <NavigationCapture />
-      <Routes>
-        <Route path="/"            element={<HomePage />} />
-        <Route path="/about"       element={<AboutPage />} />
-        <Route path="/contact"     element={<ContactPage />} />
-        <Route path="/privacy"     element={<PrivacyPage />} />
-        <Route path="/choosestyle" element={<ChoosestylePage />} />
-        <Route path="/photobooth"  element={<PhotoboothPage />} />
-      </Routes>
-    </BrowserRouter>
+  const [page, setPage] = useState<PageId>(
+    getPageFromPath(window.location.pathname)
   );
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const onPop = () => setPage(getPageFromPath(window.location.pathname));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  return <Page key={page} id={page} navigate={setPage} />;
 }
