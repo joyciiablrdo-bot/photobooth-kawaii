@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
-// ─── Types ───────────────────────────────────────────────
 type PageId = "home" | "about" | "contact" | "privacy" | "choosestyle" | "photobooth";
 
-// ─── Page data ───────────────────────────────────────────
 const HOME_CSS  = `:root {
   --pink: #ff85a1;
   --pink-light: #ffb3c6;
@@ -3984,14 +3982,14 @@ footer {
 @keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`;
 const PHOTOBOOTH_HTML = `<!-- NAV -->
 <nav>
-  <a href="#" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
+  <a href="/" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
   <ul class="nav-links">
-    <li><a href="#" class="active">Home</a></li>
-    <li><a href="#">About</a></li>
-    <li><a href="#">Photobooth</a></li>
+    <li><a href="/" class="active">Home</a></li>
+    <li><a href="/about">About</a></li>
+    <li><a href="/photobooth">Photobooth</a></li>
     
-    <li><a href="#">Contact</a></li>
-    <li><a href="#">Privacy Policy</a></li>
+    <li><a href="/contact">Contact</a></li>
+    <li><a href="/privacy">Privacy Policy</a></li>
   </ul>
   <span class="nav-bow">🎀</span>
 </nav>
@@ -4301,8 +4299,7 @@ for (let i = 0; i < 7; i++) {
   bfContainer.appendChild(bf);
 }`;
 
-
-const PAGES: Record<PageId, { css: string; html: string; js: string }> = {
+const PAGES: Record<PageId, {css:string; html:string; js:string}> = {
   home:        { css: HOME_CSS,        html: HOME_HTML,        js: HOME_JS },
   about:       { css: ABOUT_CSS,       html: ABOUT_HTML,       js: ABOUT_JS },
   contact:     { css: CONTACT_CSS,     html: CONTACT_HTML,     js: CONTACT_JS },
@@ -4311,7 +4308,6 @@ const PAGES: Record<PageId, { css: string; html: string; js: string }> = {
   photobooth:  { css: PHOTOBOOTH_CSS,  html: PHOTOBOOTH_HTML,  js: PHOTOBOOTH_JS },
 };
 
-// Map URL paths → page IDs
 const PATH_MAP: Record<string, PageId> = {
   "/":            "home",
   "/about":       "about",
@@ -4321,75 +4317,55 @@ const PATH_MAP: Record<string, PageId> = {
   "/photobooth":  "photobooth",
 };
 
-function getPageFromPath(path: string): PageId {
+function getPage(path: string): PageId {
   return PATH_MAP[path] ?? "home";
 }
 
-// ─── Page renderer ───────────────────────────────────────
-function Page({ id, navigate }: { id: PageId; navigate: (p: PageId) => void }) {
+function Page({ id, nav }: { id: PageId; nav: (p: PageId) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const { css, html, js } = PAGES[id];
 
   useEffect(() => {
-    // Inject CSS
     const style = document.createElement("style");
     style.setAttribute("data-pk", id);
     style.textContent = css;
     document.head.appendChild(style);
 
-    // Set HTML
-    if (ref.current) {
-      ref.current.innerHTML = html;
+    const el = ref.current;
+    if (!el) return () => style.remove();
+    el.innerHTML = html;
 
-      // Intercept all internal link clicks
-      const handleClick = (e: MouseEvent) => {
-        const anchor = (e.target as HTMLElement).closest("a");
-        if (!anchor) return;
-        const href = anchor.getAttribute("href");
-        if (!href) return;
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement).closest("a");
+      if (!a) return;
+      const href = a.getAttribute("href");
+      if (!href || !href.startsWith("/") || href.startsWith("//")) return;
+      e.preventDefault();
+      window.history.pushState({}, "", href);
+      nav(getPage(href));
+      window.scrollTo(0, 0);
+    };
+    el.addEventListener("click", onClick);
 
-        // Internal SPA links
-        if (href.startsWith("/") && !href.startsWith("//")) {
-          e.preventDefault();
-          const nextPage = getPageFromPath(href);
-          window.history.pushState({}, "", href);
-          navigate(nextPage);
-          window.scrollTo(0, 0);
-        }
-        // External links (social media etc) — let them open normally
-      };
-
-      ref.current.addEventListener("click", handleClick);
-
-      // Run page script
-      try { new Function(js)(); } catch (err) { /* silent */ }
-
-      return () => {
-        ref.current?.removeEventListener("click", handleClick);
-        document.querySelector(`style[data-pk="${id}"]`)?.remove();
-      };
-    }
+    try { new Function(js)(); } catch (_) {}
 
     return () => {
-      document.querySelector(`style[data-pk="${id}"]`)?.remove();
+      el.removeEventListener("click", onClick);
+      style.remove();
     };
   }, [id]);
 
   return <div ref={ref} style={{ minHeight: "100vh" }} />;
 }
 
-// ─── App ─────────────────────────────────────────────────
 export default function App() {
-  const [page, setPage] = useState<PageId>(
-    getPageFromPath(window.location.pathname)
-  );
+  const [page, setPage] = useState<PageId>(getPage(window.location.pathname));
 
-  // Handle browser back/forward buttons
   useEffect(() => {
-    const onPop = () => setPage(getPageFromPath(window.location.pathname));
+    const onPop = () => setPage(getPage(window.location.pathname));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  return <Page key={page} id={page} navigate={setPage} />;
+  return <Page key={page} id={page} nav={setPage} />;
 }
