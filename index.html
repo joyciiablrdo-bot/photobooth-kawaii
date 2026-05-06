@@ -291,13 +291,13 @@ footer {
 
 <!-- NAV -->
 <nav>
-  <a href="index.html" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
+  <a href="/" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
   <ul class="nav-links">
-    <li><a href="index.html" class="active">Home</a></li>
-    <li><a href="about.html">About</a></li>
-    <li><a href="photobooth.html">Photobooth</a></li>
-    <li><a href="contact.html">Contact</a></li>
-    <li><a href="privacy.html">Privacy Policy</a></li>
+    <li><a href="/" class="active">Home</a></li>
+    <li><a href="/about">About</a></li>
+    <li><a href="/photobooth">Photobooth</a></li>
+    <li><a href="/contact">Contact</a></li>
+    <li><a href="/privacy">Privacy Policy</a></li>
   </ul>
   <span class="nav-bow">🎀</span>
 </nav>
@@ -356,7 +356,8 @@ footer {
       <span class="kawaii-word">kawaii</span>
     </div>
     <div class="title-badge"><p>cute moments, forever</p></div>
-    <a href="choosestyle.html" class="camera-btn" aria-label="Start photobooth session">
+    <!-- ✅ FIXED: was choosestyle.html → now /choosestyle -->
+    <a href="/choosestyle" class="camera-btn" aria-label="Start photobooth session">
       <span class="camera-icon">📷</span>
     </a>
     <p class="start-label">click to start!</p>
@@ -520,6 +521,18 @@ for (let i = 0; i < 7; i++) {
   </svg>`;
   bfContainer.appendChild(bf);
 }
+
+// Intercept internal nav clicks for SPA routing (works alongside App.tsx React Router)
+document.querySelectorAll('a[href^="/"]').forEach(function(link) {
+  link.addEventListener('click', function(e) {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('/') && !href.startsWith('//')) {
+      e.preventDefault();
+      window.history.pushState({}, '', href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  });
+});
 </script>
 </body>
 </html>
