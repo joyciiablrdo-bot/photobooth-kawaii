@@ -1,58 +1,60 @@
 import { useEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 
-// Utility: page component factory
-function makePage(styleCSS: string, bodyHTML: string, scriptCode: string) {
-  return function PageComponent() {
-    const containerRef = useRef<HTMLDivElement>(null);
+// Global navigate function — populated once the router mounts
+let __navigate: ((to: string) => void) | null = null;
+
+function NavigationCapture() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    __navigate = navigate;
+    return () => { __navigate = null; };
+  }, [navigate]);
+  return null;
+}
+
+function makePage(css: string, html: string, js: string) {
+  return function Page() {
+    const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-      // Inject styles scoped with a unique ID
-      const styleId = "page-style-" + Math.random().toString(36).slice(2);
+      // 1. Inject CSS
       const styleEl = document.createElement("style");
-      styleEl.id = styleId;
-      styleEl.textContent = styleCSS;
+      styleEl.setAttribute("data-pk-page", "1");
+      styleEl.textContent = css;
       document.head.appendChild(styleEl);
 
-      // Render HTML into container
-      if (containerRef.current) {
-        containerRef.current.innerHTML = bodyHTML;
+      // 2. Set HTML
+      if (!ref.current) return;
+      ref.current.innerHTML = html;
 
-        // Intercept <a> clicks to use React Router
-        containerRef.current.addEventListener("click", (e) => {
-          const target = (e.target as HTMLElement).closest("a");
-          if (!target) return;
-          const href = target.getAttribute("href");
-          if (href && href.startsWith("/") && !href.startsWith("//")) {
-            e.preventDefault();
-            window.history.pushState({}, "", href);
-            window.dispatchEvent(new PopStateEvent("popstate"));
-          }
-        });
-
-        // Run page scripts
-        try {
-          const fn = new Function(scriptCode);
-          fn();
-        } catch(err) {
-          console.warn("Page script error:", err);
+      // 3. Intercept link clicks → React Router
+      const onClick = (e: MouseEvent) => {
+        const a = (e.target as HTMLElement).closest("a");
+        if (!a) return;
+        const href = a.getAttribute("href");
+        if (href && href.startsWith("/") && !href.startsWith("//")) {
+          e.preventDefault();
+          __navigate?.(href);
         }
-      }
+      };
+      ref.current.addEventListener("click", onClick);
+
+      // 4. Run page JS
+      try { new Function(js)(); } catch (err) { console.warn(err); }
 
       return () => {
-        // Cleanup styles on unmount
-        const el = document.getElementById(styleId);
-        if (el) el.remove();
-        // Reset body styles that individual pages may set
+        ref.current?.removeEventListener("click", onClick);
+        // Remove only styles injected by this page
+        document.querySelectorAll("style[data-pk-page]").forEach(el => el.remove());
       };
     }, []);
 
-    return <div ref={containerRef} style={{minHeight:"100vh"}} />;
+    return <div ref={ref} style={{ minHeight: "100vh" }} />;
   };
 }
 
-const HomePage = makePage(
-  `:root {
+const HomePage = makePage(`:root {
   --pink: #ff85a1;
   --pink-light: #ffb3c6;
   --pink-dark: #e05c7a;
@@ -330,8 +332,7 @@ footer {
 .footer-copy { color:#b08090;font-size:0.82rem;font-weight:600; }
 
 .sparkle { position:absolute;z-index:6;pointer-events:none;animation:sparkle-twinkle 2s ease-in-out infinite; }
-@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`,
-  `<!-- NAV -->
+@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`, `<!-- NAV -->
 <nav>
   <a href="/" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
   <ul class="nav-links">
@@ -562,8 +563,7 @@ for (let i = 0; i < 7; i++) {
   </svg>\`;
   bfContainer.appendChild(bf);
 }
-</script>`,
-  `// Generate grass blades
+</script>`, `// Generate grass blades
 const grass = document.getElementById('grass');
 for (let i = 0; i < 80; i++) {
   const blade = document.createElement('div');
@@ -625,11 +625,9 @@ for (let i = 0; i < 7; i++) {
     <path d="M18 2 Q20 0 21 1" stroke="#5c3d2e" stroke-width="1" fill="none" stroke-linecap="round"/>
   </svg>\`;
   bfContainer.appendChild(bf);
-}`
-);
+}`);
 
-const AboutPage = makePage(
-  `@font-face {
+const AboutPage = makePage(`@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -1215,8 +1213,7 @@ const AboutPage = makePage(
         .jam-card { padding: 1.6rem 1.4rem; }
         .intro-card { padding: 1.8rem 1.4rem; }
         .jam-spread-wrap { padding: 2rem 1rem 3rem; }
-      }`,
-  `<!-- Fixed side strawberries -->
+      }`, `<!-- Fixed side strawberries -->
     <span class="side-strawberry left">🍓</span>
     <span class="side-strawberry right">🍓</span>
 
@@ -1425,8 +1422,7 @@ const AboutPage = makePage(
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`,
-  `// Hamburger menu toggle
+    </script>`, `// Hamburger menu toggle
       (function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
@@ -1436,11 +1432,9 @@ const AboutPage = makePage(
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`
-);
+      })();`);
 
-const ContactPage = makePage(
-  `@font-face {
+const ContactPage = makePage(`@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -2013,8 +2007,7 @@ const ContactPage = makePage(
         .intro-card { padding: 1.8rem 1.4rem; }
         .jam-spread-wrap { padding: 2rem 1rem 3rem; }
         .social-icon { width: 50px; height: 50px; font-size: 1.3rem; }
-      }`,
-  `<!-- Fixed side strawberries -->
+      }`, `<!-- Fixed side strawberries -->
     <span class="side-strawberry left" aria-hidden="true">🍓</span>
     <span class="side-strawberry right" aria-hidden="true">🍓</span>
 
@@ -2220,8 +2213,7 @@ const ContactPage = makePage(
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`,
-  `(function () {
+    </script>`, `(function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
         if (!btn || !nav) return;
@@ -2230,11 +2222,9 @@ const ContactPage = makePage(
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`
-);
+      })();`);
 
-const PrivacyPage = makePage(
-  `@font-face {
+const PrivacyPage = makePage(`@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -2736,8 +2726,7 @@ const PrivacyPage = makePage(
         .jam-card { padding: 1.6rem 1.4rem; }
         .intro-card { padding: 1.8rem 1.4rem; }
         .jam-spread-wrap { padding: 2rem 1rem 3rem; }
-      }`,
-  `<!-- Fixed side strawberries -->
+      }`, `<!-- Fixed side strawberries -->
     <span class="side-strawberry left">🍓</span>
     <span class="side-strawberry right">🍓</span>
 
@@ -2997,8 +2986,7 @@ const PrivacyPage = makePage(
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`,
-  `(function () {
+    </script>`, `(function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
         if (!btn || !nav) return;
@@ -3007,11 +2995,9 @@ const PrivacyPage = makePage(
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`
-);
+      })();`);
 
-const ChoosestylePage = makePage(
-  `@font-face {
+const ChoosestylePage = makePage(`@font-face {
         font-family: 'Puffberry';
         src: url('fonts/Puffberry.woff2') format('woff2'),
              url('fonts/Puffberry.woff') format('woff');
@@ -3442,8 +3428,7 @@ const ChoosestylePage = makePage(
         color: #a05070;
         font-weight: 600;
         line-height: 1.6;
-      }`,
-  `<!-- Floating background decorations -->
+      }`, `<!-- Floating background decorations -->
     <div class="bg-floats" aria-hidden="true">
       <svg class="f1" width="56" height="42" viewBox="0 0 64 48">
         <ellipse cx="32" cy="28" rx="28" ry="16" fill="#fff" stroke="#c9b8e8" stroke-width="2"/>
@@ -3565,8 +3550,7 @@ const ChoosestylePage = makePage(
           btn.setAttribute('aria-expanded', open);
         });
       })();
-    </script>`,
-  `// Hamburger menu toggle
+    </script>`, `// Hamburger menu toggle
       (function () {
         const btn = document.getElementById('hamburger');
         const nav = document.getElementById('siteNav');
@@ -3576,11 +3560,9 @@ const ChoosestylePage = makePage(
           btn.classList.toggle('open', open);
           btn.setAttribute('aria-expanded', open);
         });
-      })();`
-);
+      })();`);
 
-const PhotoboothPage = makePage(
-  `:root {
+const PhotoboothPage = makePage(`:root {
   --pink: #ff85a1;
   --pink-light: #ffb3c6;
   --pink-dark: #e05c7a;
@@ -4039,8 +4021,7 @@ footer {
 
 /* Sparkle stars */
 .sparkle { position:absolute; z-index:6; pointer-events:none; animation: sparkle-twinkle 2s ease-in-out infinite; }
-@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`,
-  `<!-- NAV -->
+@keyframes sparkle-twinkle { 0%,100%{opacity:0;transform:scale(0.5)} 50%{opacity:1;transform:scale(1)} }`, `<!-- NAV -->
 <nav>
   <a href="#" class="nav-logo"><span>photobooth</span><span>kawaii</span></a>
   <ul class="nav-links">
@@ -4294,8 +4275,7 @@ for (let i = 0; i < 7; i++) {
   </svg>\`;
   bfContainer.appendChild(bf);
 }
-</script>`,
-  `// Generate grass blades
+</script>`, `// Generate grass blades
 const grass = document.getElementById('grass');
 for (let i = 0; i < 80; i++) {
   const blade = document.createElement('div');
@@ -4357,22 +4337,20 @@ for (let i = 0; i < 7; i++) {
     <path d="M18 2 Q20 0 21 1" stroke="#5c3d2e" stroke-width="1" fill="none" stroke-linecap="round"/>
   </svg>\`;
   bfContainer.appendChild(bf);
-}`
-);
+}`);
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
+      <NavigationCapture />
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/"            element={<HomePage />} />
+        <Route path="/about"       element={<AboutPage />} />
+        <Route path="/contact"     element={<ContactPage />} />
+        <Route path="/privacy"     element={<PrivacyPage />} />
         <Route path="/choosestyle" element={<ChoosestylePage />} />
-        <Route path="/photobooth" element={<PhotoboothPage />} />
+        <Route path="/photobooth"  element={<PhotoboothPage />} />
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
